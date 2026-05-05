@@ -1,0 +1,25 @@
+# Raw source papers (copyright, too large)
+mtubercolosis/*.pdf
+mtubercolosis/*.xml
+
+# Generated corpus and training data
+mtubercolosis/output/
+
+# Model checkpoints (342GB)
+**/*.safetensors
+**/*.bin
+**/*.pt
+**/*.pth
+**/optimizer.bin
+**/pytorch_model_fsdp.bin
+
+# SLURM logs
+logs/
+
+# Python
+__pycache__/
+*.pyc
+.env
+
+# Misc
+*.docx
