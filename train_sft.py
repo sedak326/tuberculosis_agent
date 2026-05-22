@@ -56,6 +56,9 @@ def main() -> None:
     parser.add_argument("--max-seq-len", type=int,   default=2048)
     parser.add_argument("--sample",      type=int,   default=None,
                         help="Use only N records (for smoke-testing)")
+    parser.add_argument("--tokenizer",   default=None,
+                        help="Tokenizer to use (defaults to --model). Override when model weights "
+                             "come from a base checkpoint that lacks a chat template.")
     parser.add_argument("--resume-from", type=str,   default=None,
                         help="Path to a checkpoint directory to resume from, or 'latest'")
     args = parser.parse_args()
@@ -63,7 +66,7 @@ def main() -> None:
     train_ds, val_ds = load_splits(args.data, sample=args.sample)
     print(f"Train: {len(train_ds)}  Val: {len(val_ds)}")
 
-    tokenizer = AutoTokenizer.from_pretrained(args.model)
+    tokenizer = AutoTokenizer.from_pretrained(args.tokenizer or args.model)
     tokenizer.pad_token = tokenizer.eos_token
     tokenizer.padding_side = "right"
     tokenizer.model_max_length = args.max_seq_len

@@ -7,6 +7,7 @@ Produces a single corpus.jsonl with structured metadata preserved in every chunk
 Sources:
   - *.pdf     → Research papers (PDF)
   - *.xml     → Elsevier full-text XML (ScienceDirect API format)
+              → PMC JATS XML (from fetch_pmc.py downloads, named PMC*.xml)
 
 Output:
   output/corpus.jsonl
@@ -651,6 +652,176 @@ def _collect_xml_items(
                 items.append(("table", table_text, chapter, section_title))
 
 
+def _extract_jats_table(table_wrap: ET.Element) -> str:
+    """Convert a JATS table-wrap element to a TSV string."""
+    label_el = table_wrap.find("label")
+    caption_text = ""
+    for cap in table_wrap.findall(".//caption"):
+        t = " ".join("".join(cap.itertext()).split())
+        if t:
+            caption_text = t
+            break
+
+    rows = []
+    for tr in table_wrap.findall(".//tr"):
+        cells = []
+        for cell in tr:
+            local = cell.tag.split("}")[-1] if "}" in cell.tag else cell.tag
+            if local in ("th", "td"):
+                cells.append(" ".join("".join(cell.itertext()).split()))
+        if cells:
+            rows.append("\t".join(cells))
+
+    if not rows:
+        return ""
+
+    header_parts = []
+    if label_el is not None and label_el.text:
+        header_parts.append(label_el.text.strip())
+    if caption_text:
+        header_parts.append(caption_text)
+
+    result = "\n".join(rows)
+    if header_parts:
+        result = " | ".join(header_parts) + "\n" + result
+    return result
+
+
+def _collect_jats_items(
+    elem: ET.Element,
+    chapter: str,
+    section_title: str,
+    items: List[tuple],
+) -> None:
+    """Recursively walk a JATS sec element and collect (type, content, chapter, section) tuples."""
+    title_el = elem.find("title")
+    new_title = " ".join("".join(title_el.itertext()).split()) if title_el is not None else None
+
+    if new_title:
+        if STOP_SECTION_RE.match(new_title):
+            return
+        if _TOP_LEVEL_SECTION_RE.match(new_title):
+            chapter = new_title
+        section_title = new_title
+
+    for child in elem:
+        tag = child.tag.split("}")[-1] if "}" in child.tag else child.tag
+        if tag == "title":
+            continue
+        elif tag == "p":
+            text = " ".join("".join(child.itertext()).split())
+            if text:
+                items.append(("text", text, chapter, section_title))
+        elif tag == "sec":
+            _collect_jats_items(child, chapter, section_title, items)
+        elif tag == "table-wrap":
+            table_text = _extract_jats_table(child)
+            if table_text:
+                items.append(("table", table_text, chapter, section_title))
+
+
+def _process_pmc_xml(xml_path: Path, root: ET.Element) -> List[Dict[str, Any]]:
+    """Extract text and tables from a PMC JATS XML file."""
+    article = root.find("article") if root.tag == "pmc-articleset" else root
+
+    if article is None:
+        log.warning("No <article> element found in %s", xml_path.name)
+        return []
+
+    title_el = article.find(".//title-group/article-title")
+    title = " ".join("".join(title_el.itertext()).split()) if title_el is not None else xml_path.stem
+
+    abs_el = article.find(".//abstract")
+    abstract = " ".join("".join(abs_el.itertext()).split()) if abs_el is not None else ""
+
+    slug = re.sub(r"[^a-z0-9]+", "_", xml_path.stem.lower())[:30].strip("_")
+    log.info("\nPMC XML: %s  →  '%s'", xml_path.name, title[:70])
+
+    docs: List[Dict[str, Any]] = []
+    chunk_counter = [0]
+
+    def make_text_chunk(text: str, chapter: str, section_title: str) -> Dict[str, Any]:
+        chunk_counter[0] += 1
+        return {
+            "content_type": "text",
+            "id": f"pmc_{slug}_chunk_{chunk_counter[0]:04d}",
+            "document_name": title,
+            "chapter": chapter,
+            "section_title": section_title,
+            "page_number": None,
+            "page_range": "N/A",
+            "text": (
+                f"[Document: {title} | Chapter: {chapter} | "
+                f"Section: {section_title}]\n\n{text}"
+            ),
+        }
+
+    def make_table_chunk(table_text: str, chapter: str, section_title: str) -> Dict[str, Any]:
+        chunk_counter[0] += 1
+        return {
+            "content_type": "table",
+            "id": f"pmc_{slug}_tbl_{chunk_counter[0]:04d}",
+            "document_name": title,
+            "chapter": chapter,
+            "section_title": section_title,
+            "page_number": None,
+            "page_range": "N/A",
+            "text": (
+                f"[Document: {title} | Chapter: {chapter} | "
+                f"Section: {section_title}]\n\n[TABLE]\n{table_text}"
+            ),
+        }
+
+    if abstract:
+        docs.append(make_text_chunk(abstract, "Abstract", "Abstract"))
+
+    items: List[tuple] = []
+    body = article.find("body")
+    if body is not None:
+        for child in body:
+            tag = child.tag.split("}")[-1] if "}" in child.tag else child.tag
+            if tag == "sec":
+                _collect_jats_items(child, "Body", "Body", items)
+            elif tag == "p":
+                text = " ".join("".join(child.itertext()).split())
+                if text:
+                    items.append(("text", text, "Body", "Body"))
+
+    buf: List[str] = []
+    buf_chapter = "Body"
+    buf_section = "Body"
+    buf_len = 0
+
+    def flush_buf() -> None:
+        nonlocal buf, buf_len
+        if buf:
+            docs.append(make_text_chunk("\n\n".join(buf), buf_chapter, buf_section))
+        buf = []
+        buf_len = 0
+
+    for item_type, content, chapter, section_title in items:
+        if item_type == "text":
+            if (chapter != buf_chapter or section_title != buf_section) and buf:
+                flush_buf()
+            buf_chapter = chapter
+            buf_section = section_title
+            if buf_len + len(content) > MAX_SECTION_CHARS and buf:
+                flush_buf()
+                buf_chapter = chapter
+                buf_section = section_title
+            buf.append(content)
+            buf_len += len(content)
+        else:
+            flush_buf()
+            docs.append(make_table_chunk(content, chapter, section_title))
+
+    flush_buf()
+
+    counts = Counter(d["content_type"] for d in docs)
+    log.info("  Chunks: %s", dict(counts))
+    return docs
+
+
 def process_xml(xml_path: Path) -> List[Dict[str, Any]]:
     try:
         tree = ET.parse(str(xml_path))
@@ -659,6 +830,11 @@ def process_xml(xml_path: Path) -> List[Dict[str, Any]]:
         return []
 
     root = tree.getroot()
+
+    # Dispatch based on format: PMC JATS vs Elsevier ScienceDirect
+    root_tag = root.tag.split("}")[-1] if "}" in root.tag else root.tag
+    if root_tag in ("pmc-articleset", "article"):
+        return _process_pmc_xml(xml_path, root)
 
     title_el = root.find(f".//{{{_DC}}}title")
     title = " ".join("".join(title_el.itertext()).split()) if title_el is not None else ""
