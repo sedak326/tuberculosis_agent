@@ -1,0 +1,90 @@
+[
+  {
+    "id": "adrian-mech-002",
+    "submitted_at": "2026-05-22T00:00:00",
+    "submitter": "Adrian",
+    "category": "data_interpretation",
+    "ambiguous": false,
+    "instruction": "Given a researcher's description of an experiment and their observations, explain the likely biological significance of the results based on your knowledge of M. tuberculosis.",
+    "input": "Hey, I ran a couple of screens — a gene expression screen and a transposon sequencing (Tn-seq) screen — and one of my top hits in both is the alternative sigma factor sigG. It's showing up as a strong signal in my data. As an AI agent specialized in TB, what can you tell me about this gene? Any ideas about what it's related to, or what pathways/conditions it might point to?",
+    "output": "sigG is an alternative sigma factor in M. tuberculosis, and it has come up repeatedly in transcriptional studies. It has been reported as significantly upregulated in macrophage infection models, and it has been examined in relation to other stress- and infection-associated genes — so seeing it as a top hit in both your expression and Tn-seq screens is consistent with an infection- or stress-associated role. As a next step, I'd point you to the macrophage-infection transcriptomics literature on sigG to see which downstream genes and conditions it has been linked to.",
+    "notes": "Verify sigG macrophage-upregulation claim against primary lit before bootstrapping. Expression screen (induction) and Tn-seq (fitness) report different signal types — a stronger output might distinguish them explicitly."
+  },
+  {
+    "id": "adrian-rc-001",
+    "submitted_at": "2026-05-22T00:00:00",
+    "submitter": "Adrian",
+    "category": "fractionation_localization",
+    "ambiguous": false,
+    "instruction": "Given a researcher's description of their work, question, or goal, respond helpfully and substantively using your knowledge of M. tuberculosis.",
+    "input": "Hey, I'm a researcher doing protein design — specifically mini-protein binder design. We want to hit targets in infectious disease, in particular tuberculosis. I need ideas for surface-exposed proteins on the bacterial surface that could be targets for a protein-design project — ideally some that aren't on everyone's radar, or are buried deep in the literature.",
+    "output": "One target that might not be on everyone's radar is enolase. In mycobacteria, enolase is best known as a cytoplasmic glycolytic enzyme, but — as in several other bacteria — it appears to 'moonlight' on the cell surface, where it can bind host plasminogen. A surface-displayed, plasminogen-recruiting enolase is an appealing and relatively under-explored candidate for a mini-binder project, both for its surface accessibility and its potential role at the host–pathogen interface. I'd suggest digging into the literature on mycobacterial moonlighting proteins and bacterial surface plasminogen receptors to gauge how well-characterized the Mtb surface pool actually is.",
+    "notes": "Verify Mtb enolase is documented as surface-localized and plasminogen-binding before bootstrapping."
+  },
+  {
+    "id": "adrian-rc-002",
+    "submitted_at": "2026-05-22T00:00:00",
+    "submitter": "Adrian",
+    "category": "mechanism_hypothesis",
+    "ambiguous": false,
+    "instruction": "Given a researcher's question that embeds an assumption or claim, do not accept the claim at face value. Use your knowledge of M. tuberculosis to assess whether it is correct, and steer the researcher in the right direction.",
+    "input": "Hey, my question is about NAD kinase — the enzyme that phosphorylates NAD to NADP. I'm studying NAD kinase in tuberculosis. Is it true that the M. tuberculosis NAD kinase is structurally and sequence-wise essentially the same as typical NAD kinases found across the tree of life?",
+    "output": "Actually, that's not quite right — and the exception is what makes it interesting. M. tuberculosis NAD kinase has been reported to have distinctive structural features rather than being a generic NAD kinase. In particular, structural work has described unusual architecture in its C-terminal domain — including a novel fold and high-order (222 / D2) symmetry in the oligomeric assembly — that set it apart from canonical NAD kinases. So rather than assuming it's conserved, I'd point you to the structural literature on Mtb NAD kinase specifically, where these atypical folds and symmetries are characterized.",
+    "notes": "Anti-sycophancy seed — model must not affirm a false premise. Verify specific structural claims (novel C-terminal fold, 222/D2 symmetry) against primary publication before bootstrapping."
+  },
+  {
+    "id": "adrian-rc-003",
+    "submitted_at": "2026-05-22T00:00:00",
+    "submitter": "Adrian",
+    "category": "mechanism_hypothesis",
+    "ambiguous": false,
+    "instruction": "The user has biology-related questions about M. tuberculosis and mycobacteria more broadly. You have access to a broad view of the literature and a strong bird's-eye perspective. Guide the user in the right direction — both toward relevant literature and toward the right conceptual way to think about the question.",
+    "input": "I'm learning about kinases in M. tuberculosis but also across other mycobacteria. For two-component kinases: how replaceable are the parts? I understand there's a signal-receiver component and an actuator component — but can you mix and match them? Can you pair them across different systems?",
+    "output": "Great question. Two-component systems do appear to be at least partially modular — swappable in some cases, though not infinitely so. There are examples in the literature where components are mixed across species, e.g., pairing a piece from M. tuberculosis with one from M. smegmatis. A specific case worth looking into is the MtrAB system, where the sensor kinase can be functionally substituted by another kinase, TrcS. Conceptually, the thing that governs whether a swap preserves signaling is the phosphotransfer specificity between the histidine kinase and its response regulator — that molecular-recognition interface is what insulates cognate pairs from cross-talk, so swaps tend to work when that interface is compatible. I'd point you to the literature on two-component system cross-talk and chimeric kinases in mycobacteria to see how far the mixing-and-matching has actually been pushed experimentally.",
+    "notes": "Verify MtrAB sensor-kinase / TrcS functional-substitution claim and the Mtb/M. smegmatis component-swap examples against primary lit before bootstrapping."
+  },
+  {
+    "id": "adrian-rc-004",
+    "submitted_at": "2026-05-22T00:00:00",
+    "submitter": "Adrian",
+    "category": "mechanism_hypothesis",
+    "ambiguous": false,
+    "instruction": "The user wants to deepen their understanding of the molecular biology of M. tuberculosis. Drawing on your knowledge of the literature, help them by pointing toward specific, relevant findings and explaining why they matter.",
+    "input": "Hey, I'm in TB drug discovery. Adenylyl cyclases are an important target class, but I need something unique about the adenylyl cyclases in M. tuberculosis — their enzymology specifically. I want to target a structural domain that's unique to mycobacteria, so my drug candidates are specific and don't hit every other organism that has an adenylyl cyclase. Do you know of any interesting structural features of TB adenylyl cyclases?",
+    "output": "Funny you ask — there's a great example. The gene Rv1264 encodes a class III adenylyl cyclase that, beyond its C-terminal catalytic domain (the conserved active region shared with other class III cyclases), carries a novel N-terminal regulatory domain that is autoinhibitory — it constrains cyclase activity under specific conditions (the system is pH-regulated). Because that N-terminal module is a distinctive regulatory element rather than the conserved catalytic core, it's an appealing place to aim for specificity. Conceptually, instead of just blocking the conserved active site, you might design compounds that engage that N-terminal domain — potentially to relieve the autoinhibition and activate the enzyme. I'd point you to the structural work on the Rv1264 holoenzyme to map the domain interface you'd want to target.",
+    "notes": "Well-grounded: Rv1264 pH-sensing class III AC with autoinhibitory N-terminal domain is documented (Tews et al. 2005). Confirm regulatory mechanism wording before bootstrapping."
+  },
+  {
+    "id": "adrian-rc-005",
+    "submitted_at": "2026-05-22T00:00:00",
+    "submitter": "Adrian",
+    "category": "mechanism_hypothesis",
+    "ambiguous": false,
+    "instruction": "The user is a researcher trying to connect their basic-science expertise to clinically relevant TB biology. Help them by surfacing specific M. tuberculosis processes or enzymes within their area that they may not be aware of, and explain why those connections matter.",
+    "input": "Hey, I study methylation in bacteria — specifically the SAM-dependent methyltransferase family of enzymes. I'd like to connect my work to the clinical side of TB. How does my fairly basic research project connect to real clinical targets? Concretely: do you know of any important biological processes in M. tuberculosis that depend on a SAM methyltransferase that I might not have on my radar and could start reading up on?",
+    "output": "Yes — there are a lot of interesting SAM-dependent methyltransferases in TB. One class worth putting on your radar is the cyclopropane mycolic acid synthases. These enzymes use SAM to introduce cyclopropane rings (those little 'triangle' features) and methyl branches into mycolic acids — the very-long-chain lipids that define the mycobacterial cell envelope. Mechanistically their fold is closely related to the SAM-methyltransferase family you already know, so the enzymology will feel familiar. The clinical hook: these mycolic acid modifications are crucial for cell-envelope integrity, virulence, and persistence — cyclopropanation has been tied to cording and to the bacterium's survival during chronic infection — which is what makes these enzymes attractive targets. I'd suggest starting with the literature on cyclopropane synthases (e.g., the PcaA, CmaA, and MmaA enzymes) and mycolic acid modification.",
+    "notes": "Well-grounded: PcaA/CmaA1/CmaA2/MmaA1-4 are SAM-dependent MTases; PcaA loss disrupts cording and attenuates persistence (Glickman et al. 2000). Confirm 'modification/tailoring' vs 'biosynthesis' framing."
+  },
+  {
+    "id": "adrian-rc-006",
+    "submitted_at": "2026-05-22T00:00:00",
+    "submitter": "Adrian",
+    "category": "mechanism_hypothesis",
+    "ambiguous": false,
+    "instruction": "The user is a researcher who wants to draw on deep domain (enzymology) knowledge about M. tuberculosis enzymes to inform a computational or machine-learning project. Help them by surfacing concrete examples of conserved, mechanistically-grounded knowledge they can build on.",
+    "input": "Hi! I'm a graduate student working on predicting enzyme substrate specificity — given an enzyme sequence, can I predict its substrate's structure? In particular, I work with SAM-dependent methyltransferases. I'm looking for new ideas on what's already known. I want to think like an enzymologist who's an expert in TB SAM-methyltransferases: I need examples of the conserved active-site knowledge enzymologists have about TB enzymes, so I can feed that into — and reframe — my machine-learning problems from that viewpoint.",
+    "output": "This is a great angle. There's a long tradition of enzymologists who, without any machine learning, have studied these structures for decades and worked out the conserved features within an enzyme class that dictate substrate specificity. A good example for you is the mycobacterial cyclopropane mycolic acid synthases — enzymes like PcaA, CmaA1, and CmaA2 — which introduce cyclopropane rings into mycolic acids. Structural and biochemical work on them has identified conserved active-site features that govern substrate specificity, which is exactly the kind of prior knowledge you could encode or test against in your models. I'd start with the structural literature on these cyclopropane synthases and their substrate-recognition determinants.",
+    "notes": "Second seed citing cyclopropane synthases — consider swapping to a different SAM-MTase for diversity before bootstrapping."
+  },
+  {
+    "id": "adrian-rc-007",
+    "submitted_at": "2026-05-22T00:00:00",
+    "submitter": "Adrian",
+    "category": "data_interpretation",
+    "ambiguous": false,
+    "instruction": "The user is reading the TB literature but is not a specialist, and wants a dense passage explained in clear, friendly, accessible terms. Given the passage and their request, provide a toned-down explanation that helps them understand the biology and biochemistry without oversimplifying the key findings.",
+    "input": "Passage: The lpdA (Rv3303c) gene from Mycobacterium tuberculosis encoding a new member of the flavoprotein disulfide reductases was expressed in Escherichia coli, and the recombinant LpdA protein was purified to homogeneity. LpdA is a homotetramer and co-purifies with one molecule of tightly but noncovalently bound FAD and NADP+ per monomer. Although annotated as a probable lipoamide dehydrogenase in M. tuberculosis, LpdA cannot catalyze reduction of lipoyl substrates, because it lacks one of two cysteine residues involved in dithiol-disulfide interchange with lipoyl substrates and a His-Glu pair involved in general acid catalysis. The crystal structure of LpdA was solved by multiple isomorphous replacement with anomalous scattering, which confirmed the absence of these catalytic residues from the active site. Although LpdA cannot catalyze reduction of disulfide-bonded substrates, it catalyzes the NAD(P)H-dependent reduction of alternative electron acceptors such as 2,6-dimethyl-1,4-benzoquinone and 5-hydroxy-1,4-naphthaquinone. Significant primary deuterium kinetic isotope effects were observed with [4S-2H]NADH establishing that the enzyme promotes transfer of the C4-proS hydride of NADH. The absence of an isotope effect with [4S-2H]NADPH, the low Km value of 0.5 uM for NADPH, and the potent inhibition of the NADH-dependent reduction of 2,6-dimethyl-1,4-benzoquinone by NADP+ (Ki ~6 nm) and 2'-phospho-ADP-ribose (Ki ~800 nm), demonstrate the high affinity of LpdA for 2'-phosphorylated nucleotides and that the physiological substrate/product pair is NADPH/NADP+ rather than NADH/NAD+. Modeling of NADP+ in the active site revealed that LpdA achieves the high specificity for NADP+ through interactions involving the 2'-phosphate of NADP+ and amino acid residues that are different from those in glutathione reductase.\n\nRequest: Hey, I'm reading this paper. I'm not a TB biologist, but I want to understand the biology and biochemistry well — can you give me a toned-down version of this?",
+    "output": "Yeah, this is a dense one — let me walk you through what they did and found. The paper is about a single M. tuberculosis enzyme called LpdA. From its gene sequence it had been annotated as a 'lipoamide dehydrogenase,' meaning people assumed it does the standard job enzymes with that name usually do — and this paper set out to actually test that. They produced the protein (expressed it in E. coli, purified it cleanly) and characterized it two ways. First, they solved its crystal structure, which gives an atomic-level picture of the protein's shape and shows which small molecules sit inside it (here, FAD and NADP+). Second, they ran enzyme assays — incubating it with the substrate it was 'supposed' to act on and checking for activity. The punchline: it doesn't do the expected job. The structure showed LpdA is missing two key catalytic pieces (a pair of cysteines, plus an acid/base residue pair) that real lipoamide dehydrogenases need, so it physically can't run that reaction. When they tested other substrates, they found it reduces quinones instead, passing electrons to those compounds, and it clearly prefers NADPH over NADH as its electron source. Big picture: a careful deep-dive into one TB enzyme that turned out not to have the activity everyone assumed from its name — a nice reminder of why annotating function from sequence similarity alone can mislead, and why structure plus biochemistry is needed to know what an enzyme really does.",
+    "notes": "Open-book seed — output is grounded in the provided passage (low hallucination risk). Output is grounded in the LpdA / Rv3303c paper (Argyrou & Blanchard)."
+  }
+]

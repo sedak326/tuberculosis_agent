@@ -14,23 +14,35 @@ SFT stage: fine-tune the CPT checkpoint on instruction-response pairs to teach i
 ## Data
 
 ### Current corpus
-- ~80 TB research papers in mtubercolosis/ (PubMed IDs as filenames, mix of PDFs and Elsevier XMLs)
+- 1,362 TB research papers in mtubercolosis/ (PubMed IDs as filenames, mix of PDFs and Elsevier XMLs)
+- Fetched via fetch_pmc.py; confirmed query: `"Mycobacterium tuberculosis"[MeSH] AND proteomics[MeSH]`
 - extract_corpus.py extracts text, tables into structured chunks with section/chapter metadata
-- Output: mtubercolosis/output/corpus.jsonl
-- Extracted corpus lives at mtubercolosis/output/corpus.jsonl — 24,238 chunks (23,102 text + 1,136 table)
+- Output: mtubercolosis/output/corpus.jsonl — 24,238 chunks (23,102 text + 1,136 table)
+- papers_metadata.tsv — full title + authors for all 1,362 PMIDs, fetched from PubMed API
+- abstracts_sample.md — 15-paper random sample with clean abstracts (used for seed writing)
 
-This is just the initial corpus until we know what the exact pipeline is gonna be. I am aware similar LLM CPT projects used millions of literature (papers, books).
+### Seed tasks — NEW FORMAT (2026-05-22)
 
-### Planned expansion
-- Pull a larger TB-domain subset from PubMed to supplement the 80 papers
-- More volume is needed for CPT to be effective
+Primary seed file: **seeds.json** — structured (id, category, instruction, input, output, notes) triplets.
+seed_tasks.md is the older looser format; seeds.json supersedes it for the next generation run.
 
-### Seed tasks
-- seed_tasks.md contains the seed examples used to guide synthetic data generation
-- I am gonna write 80 seeds with my Prof who is a tuberculosis specialist. 
-- Examples for how they are gonna look can be found in seed_tasks.md
-- Human-written seeds matter because LLM-written seeds introduce uniformity that degrades generation diversity 
-- Once we have those seeds we will use LLama to come up with more questions 
+**Target: 80 seeds total.** Written with Adrian (TB specialist). Category split (provisional, pending sign-off):
+- research_consult (~32, 40%) — PRIMARY. Open-ended research-advisory chat: explain a hit, suggest targets, advise what to investigate. Naturalistic user register. Eval is judge-based, not ground-truth match.
+- closed_book_qa (~12, 15%) — essentiality & drug-resistance gene biology from memorized knowledge.
+- extraction (~12, 15%) — pull structured (gene, condition, phenotype) or (gene, drug, mechanism) tuples from a passage.
+- methodology_qa (~8, 10%) — experimental design / technical detail questions grounded in a passage.
+- mechanism_hypothesis (~8, 10%) — given an observation, propose plausible molecular mechanisms.
+- summarization (~4, 5%) — technical-audience summary preserving gene names and quantitative results.
+- literature_search (~4, 5%) — scaffold a PubMed search strategy for a given research question.
+
+**Status (2026-05-22): 19 seeds written** (qa-001–003, ext-001–003, meth-001–002, sum-001, mech-001–002, rc-001–007, lit-001). Several ext/meth/sum seeds still have `<<PASTE ABSTRACT>>` placeholders — need real corpus passages pasted in.
+
+Key conventions in seeds.json meta block:
+- Vary instruction phrasing aggressively (ROUGE-L diversity filter on instruction string)
+- Outputs are the training signal — write them carefully and accurately
+- Include 3-5 uncertainty/refusal seeds across categories
+- Abstracts used as seed inputs are fine; EVAL set must come from held-out papers
+- Open items flagged in `notes` fields must be verified against primary lit before bootstrapping 
 
 ## Pipeline
 
@@ -83,7 +95,12 @@ Key differences vs PMC-LLaMA:
 - extract_corpus.py — corpus extraction from PDFs and XMLs
 - generate_training_data.py — synthetic instruction-response pair generation
 - train_sft.py — SFT training script
-- seed_tasks.md — seed examples for data generation
+- seeds.json — primary hand-written seed set (19/80 done, 2026-05-22); supersedes seed_tasks.md for next generation run
+- seed_tasks.md — older loose seed format (kept for reference)
+- papers_metadata.tsv — title + authors for all 1,362 corpus PMIDs (fetched from PubMed API)
+- fetch_paper_metadata.py — fetches title/authors from PubMed by PMID batch
+- sample_abstracts.py — writes a random abstract sample to abstracts_sample.md (change SEED= for different draw)
+- abstracts_sample.md — current 15-paper abstract sample used for seed writing (SEED=42)
 - run_generation.slurm — 16-shard SLURM array job for generation
 - run_training.slurm — SLURM job for SFT
 - run_training_miwv.slurm — SLURM job variant (MIWV data selection)
