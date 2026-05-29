@@ -1051,4 +1051,4 @@ if __name__ == "__main__":
     print(f"Loaded {len(ABSTRACTS)} abstracts from corpus.")
     print(f"Seeds file: {SEEDS_FILE}")
     print("Starting on http://0.0.0.0:5050")
-    app.run(host="0.0.0.0", port=8080, debug=False)
+    app.run(host="0.0.0.0", port=8888, debug=False, threaded=True)
