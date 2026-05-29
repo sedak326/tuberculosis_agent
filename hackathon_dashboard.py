@@ -27,23 +27,21 @@ NS = {
 }
 
 CATEGORIES = [
-    ("data_interpretation",       "📊 Data Interpretation",       "Researcher pastes protein lists, fold-change tables, or abundance data and asks what it means biologically — differential abundance reasoning, unexpected hits, canonical infection-stage signatures."),
-    ("fractionation_localization","🧫 Fractionation & Localization","ESX substrate identification, cell envelope fraction interpretation, lipoprotein vs. secreted vs. surface-exposed disambiguation. Requires knowing the unique Mtb envelope and secretion machinery."),
-    ("methods_protocol",          "⚗️ Methods & BSL-3 Protocols",  "Sample prep constraints under BSL-3, inactivation tradeoffs, enrichment strategy advice (phosphoproteomics, secretome pulldowns) and where standard workflows break down specifically for Mtb."),
-    ("database_integration",      "🗄️ Database & Cross-Experiment","Reconciling proteomics hits with Tn-seq essentiality, annotation quality caveats in MtbBase/UniProt/PATRIC, common co-IP sticky proteins (e.g. GroEL2), interpreting conflicting datasets."),
-    ("host_pathogen",             "🦠 Host–Pathogen Interface",    "Dual proteomics (separating Mtb signal from macrophage signal), virulence factor abundance as infection-stage proxies, and proteins conserved between human and Mtb that are hard to disambiguate."),
-    ("mechanism_hypothesis",      "💡 Mechanism & Hypothesis",     "Given an experimental observation, propose the most plausible molecular mechanisms and a distinguishing experiment. Open-ended reasoning grounded in TB biology."),
-    ("literature_search",         "📚 Literature Search Strategy", "Scaffold targeted PubMed search queries for a specific TB proteomics research question, with a brief note on what each query is designed to surface."),
+    ("literature_explanation",    "📖 Literature Explanation",      "Explain a concept, finding, or paper passage in accessible terms — what a gene/protein does, the significance of a result, or a dense methods section broken down clearly."),
+    ("literature_search",         "📚 Literature Search Strategy",  "Scaffold targeted PubMed search queries for a specific TB research question, with a brief note on what each query is designed to surface."),
+    ("result_interpretation",     "📊 Result Interpretation",       "Researcher pastes protein lists, fold-change tables, screen hits, or abundance data and asks what it means biologically — differential abundance reasoning, unexpected hits, canonical infection-stage signatures."),
+    ("research_pipeline",         "⚗️ Research Pipeline Help",      "Experimental design, method choice, troubleshooting, and BSL-3 protocol advice — including sample prep constraints, enrichment strategy, and where standard workflows break down for Mtb."),
+    ("hypothesis_generation",     "💡 Hypothesis Generation",       "Given an experimental observation, propose the most plausible molecular mechanisms and a distinguishing experiment. Open-ended reasoning grounded in TB biology."),
+    ("gene_target_prioritization","🎯 Gene/Target Prioritization",  "Given a hit list of proteins or genes, help the researcher decide which to follow up on — weighing essentiality, novelty, drug tractability, and biological context."),
 ]
 
 CATEGORY_TARGETS = {
-    "data_interpretation":        16,
-    "fractionation_localization": 12,
-    "methods_protocol":           12,
-    "database_integration":       12,
-    "host_pathogen":              10,
-    "mechanism_hypothesis":       10,
-    "literature_search":           8,
+    "literature_explanation":     15,
+    "literature_search":          10,
+    "result_interpretation":      15,
+    "research_pipeline":          15,
+    "hypothesis_generation":      15,
+    "gene_target_prioritization": 10,
 }
 TOTAL_TARGET = 80
 
@@ -61,21 +59,21 @@ SUBMIT_MSGS = [
 
 EXAMPLE_SEEDS = [
     {
-        "category": "data_interpretation",
+        "category": "result_interpretation",
         "ambiguous": False,
         "instruction": "Hey, I just got back my macrophage infection proteome results and I want to sanity-check my top hits before I start following anything up. Can you go through this list and tell me what's real biology, what's likely artifact, and what's interesting but unclear?",
         "input": "Top hits enriched >2-fold, FDR<0.05 vs. axenic culture: EsxA, EsxB, GroEL2, Rv3303c (LpdA), DnaK, Tuf, SigA, Rv0340, HspX (Rv2031c)",
         "output": "EsxA and EsxB are real biology — they're well-validated ESX-1 substrates and their enrichment during macrophage infection is a meaningful proxy for active secretion. HspX (Rv2031c, alpha-crystallin) is also expected: it's a canonical DosR-regulon protein and a textbook hypoxia/latency marker, so seeing it enriched during macrophage infection is consistent with the bacterium sensing the intracellular environment and entering a stress response. GroEL2 and DnaK should be treated with skepticism — they're notorious sticky proteins and some of the most common non-specific co-IP contaminants in Mtb proteomics. Their appearance at the top of a pulldown list is a red flag, not a hit. Tuf and SigA are both very highly abundant housekeeping proteins; their enrichment is almost certainly bleed-through from total protein rather than regulated changes. LpdA (Rv3303c) is genuinely interesting: it's a flavoprotein that was annotated as lipoamide dehydrogenase but structural work showed it lacks the catalytic residues for that activity and prefers NADPH; its role during infection is not well defined, so this is worth following up. Rv0340 is poorly annotated — I'd park it and come back only if you see it again in a second experiment.",
     },
     {
-        "category": "methods_protocol",
+        "category": "research_pipeline",
         "ambiguous": False,
         "instruction": "I want to do phosphoproteomics on live Mtb. I know the basics of phosphoproteomics but I have no idea what's specific to working with mycobacteria under BSL-3. What do I need to know before I start?",
         "input": "Planning to use TiO2 enrichment, standard FASP workflow, inactivation by heat (80°C, 1h) before lysis.",
         "output": "Your planned heat inactivation step is the first thing to revisit. Heat inactivation at 80°C for 1 hour causes rapid and widespread dephosphorylation — phosphatases remain active during the temperature ramp before the cells die, and you'll systematically lose low-stoichiometry phosphosites before you've even touched the cells. The field standard for phosphoproteomics is to kill and denature as fast as possible: immediate lysis in boiling SDS (e.g. drop cells directly into 95°C SDS buffer) quenches phosphatase activity fastest. This is harder to do safely at BSL-3 and your containment setup will constrain your options, but it's worth the effort. Second: Mtb's kinome is dominated by PASTA-domain Ser/Thr kinases (PknA through PknL) rather than the His kinases that dominate other bacteria, so your TiO2 enrichment targeting pSer/pThr is the right choice — don't use Tyr-specific enrichment. Third: phosphosite stoichiometry is low in Mtb relative to eukaryotes, so budget for at least two rounds of TiO2 enrichment, or switch to Fe-IMAC which some labs find gives better coverage. Fourth: the cell wall makes lysis inefficient with standard sonication — bead-beating in lysis buffer with phosphatase inhibitors is standard, but you're in a race against the phosphatases the whole time. I'd point you to Prisic et al. 2010 (PNAS) and Ge et al. 2010 as the foundational Mtb phosphoproteomics papers, and to more recent work from the Bhatt lab for protocol updates.",
     },
     {
-        "category": "database_integration",
+        "category": "result_interpretation",
         "ambiguous": True,
         "instruction": "I have a protein that shows up as strongly essential in multiple Tn-seq screens but I can't detect it at all in my whole-cell proteome — not even a single peptide. Is this a technical problem on my end, or is this a real thing that happens?",
         "input": "Protein: Rv2671, essential in Griffin 2011 and Sassetti 2003 Tn-seq datasets. Undetectable in my shotgun whole-cell proteome of H37Rv grown in 7H9 to mid-log. Coverage elsewhere in proteome is good (>2000 proteins).",
