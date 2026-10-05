@@ -1,5 +1,9 @@
 # TB LLM Project — Plan & Status
 
+## Repo
+
+Pushed to GitHub: https://github.com/sedak326/tuberculosis_agent (`main`). Large files (checkpoints, corpora, raw papers, SLURM logs) are gitignored and live only on `/uss` or locally — see "Data paths" below for where everything actually is.
+
 ## Storage
 
 Large files (model checkpoints, large datasets, raw papers) must be stored on `/uss`, not in `/home/skavlak`. The home directory is on a 4T network filesystem shared across the lab. Always point SLURM output dirs, checkpoint dirs, and new paper downloads at `/uss` before launching a job.
@@ -14,22 +18,14 @@ Large files (model checkpoints, large datasets, raw papers) must be stored on `/
 
 Build a domain-specific LLM that serves as a research assistant for tuberculosis, combining all existing TB research and literature. Focus on protein/omics-level interactions. The LLM should assist researchers with questions, reasoning, and hypothesis generation — like Claude Code but for TB research.
 
-## Status (updated 2026-08-24)
+## Status (updated 2026-10-05)
 
-There are two distinct rounds of work. **Do not conflate them.**
+Four distinct rounds of work now. **Do not conflate them.**
 
-- **Run 1** — the original v3-corpus pipeline below. COMPLETE, all 9 conditions scored. Results were disappointing (see "Run 1 results" below) and diagnosed as full-parameter-fine-tuning catastrophic forgetting on a severely data-starved 8B model. **Kept frozen as a reference point — do not delete or overwrite these results/checkpoints.**
-- **Run 2** — a fresh effort, in progress, not a patch on Run 1. Two changes from Run 1: (1) a much larger literature corpus, (2) exploring QLoRA instead of full-parameter fine-tuning to fix the data-starvation problem. Approach still being finalized as of this writing.
-
-### Run 2 — current state
-
-- **Corpus**: expanded from 56.9M → **148.4M CPT tokens** (382,700 chunks) by fetching 12,976 additional verified on-topic papers via EuropePMC (see "Corpus v3 expansion" below). Live at `corpus_v3_train.jsonl`. The 200-paper/2,950-chunk held-out eval set (`corpus_v3_eval.jsonl`) was protected during the merge — untouched.
-- **SFT data**: being regenerated from scratch with rebalanced categories (see "SFT categories" below). Old Run 1 SFT data (48,782 examples, unbalanced) archived at `archive/training_data_v3_unbalanced_20260807.jsonl` — not deleted, not in use. New generation in progress: **258,722 of ~637,700 target examples** as of 2026-08-24 (paused/resumed multiple times; see `data_prep/auto_resubmit_generation.sh`).
-- **CPT**: decided to keep full-parameter (not QLoRA) for Run 2 — CPT's job is broad knowledge injection, which full-parameter updates likely handle better than LoRA's low-rank constraint; also keeps the CPT+SFT-vs-SFT ablation clean (adding QLoRA-CPT would confound "more data" with "different method"). Same recipe as Run 1 (see "CPT details"), rerun once against the new corpus. **Blocked on gpu4 availability** (fully occupied by SFT generation as of this writing).
-- **SFT training method**: **not yet decided.** Leaning QLoRA for 8B — rank-64 LoRA has ~168M trainable params (48x fewer than full 8B), which takes tokens/trainable-param from 0.006 (the value that caused Run 1's catastrophic forgetting) to ~0.30 using the *same* data already in hand. This is the most important open decision — nothing else in Run 2's SFT plan is finalized until this is settled.
-- **Model sizes**: reconsidering whether 70B is worth including. In Run 1, 70B (QLoRA) and 8B (full-parameter) were confounded — couldn't tell if 70B's better behavior was scale or training method. If 8B also moves to QLoRA, 70B QLoRA becomes a cleaner "does scale matter, holding method constant" comparison — genuinely interesting, but not necessary to validate the fix (70B was never the broken one in Run 1). Current lean: prioritize nailing 8B QLoRA first (cheap/fast to iterate — needs far fewer GPU-hours than 70B), treat 70B QLoRA as a secondary addition once 8B is working, not something to build in parallel from the start.
-- **MIWV**: stays in the pipeline conceptually, but existing MIWV scores are stale (computed against the old, smaller data) and would need rescoring once the new SFT set is finalized.
-- **Not decided yet**: exact LoRA rank/alpha/target-modules for 8B SFT, whether to also retry the instruct-base experiment (see "Known bugs" below), whether/when to run the `8b_small_batch` hyperparameter ablation (built, never run — see below).
+- **Run 1** — the original v3-corpus pipeline. COMPLETE, all 9 conditions scored. Results were disappointing and diagnosed as full-parameter-fine-tuning catastrophic forgetting on a severely data-starved 8B model. **Kept frozen as a reference point — do not delete or overwrite these results/checkpoints.**
+- **Run 2** — corpus expansion effort. Corpus (148.4M tokens) and SFT data (636,520 examples) are both DONE. **CPT and SFT training were never actually run** — CPT got blocked on gpu4 availability and the run stalled after data prep. No eval results exist for Run 2. Not actively being pursued; superseded in spirit by Run 3/4's contamination-controlled design, but the data is sitting there if anyone wants to pick it back up.
+- **Run 3** — COMPLETE. A standalone, contamination-controlled replication built only from papers published after Llama's pretraining cutoff (Dec 2023), so CPT can't re-expose the model to memorized text and the eval set is guaranteed unseen. QLoRA for both CPT and SFT. All 6 conditions evaluated and scored (see "Run 3" section below).
+- **Run 4** — COMPLETE. Isolates seed-pool quality as the only changed variable vs Run 3: same corpus, same CPT checkpoint (unused by this condition), same eval set — only the SFT seed pool was fixed (see "Seed pool audit" below) and SFT data regenerated from it. Result: no detectable change on any eval metric vs Run 3 (see below). Led to a diagnosis that the MCQ eval format may not match what the SFT data is actually training.
 
 ---
 
@@ -92,6 +88,68 @@ Eval results (scored): `/uss/skavlak/tb_corpus_v3/eval_results/*_scored.jsonl` �
 
 ---
 
+## Run 3 (COMPLETE — contamination-controlled replication)
+
+Standalone pipeline, independent of Run 1/2 — no shared corpus, no comparison assumed. Built entirely from papers verified to have been published after Llama 3.1/3.3's pretraining cutoff (Dec 2023), so CPT contamination is structurally impossible and the MCQ eval set is guaranteed leak-free.
+
+- **Corpus**: `/uss/skavlak/version_3/` — 119,325 train chunks + 3,477 eval chunks, ~32.5M words (roughly 40-45M BPE tokens, estimated).
+- **CPT**: QLoRA (added support to `train_cpt.py` for this), ~4 GPUs, completed in ~3h41m.
+- **SFT data**: 24,000-chunk sample → 39,996 examples, generated from `seeds.json` (pre-fix, at the time).
+- **Conditions evaluated** (6, all scored):
+
+| Condition | Accuracy |
+|---|---|
+| Base (raw, non-instruct) | 0.800 |
+| Base (Instruct, untouched) | 0.873 |
+| SFT from raw base | 0.838 |
+| CPT + SFT | 0.839 |
+| SFT from Instruct base | 0.881 |
+| SFT from Instruct base, 200K ex | 0.886 |
+
+Notable: SFT-from-raw-base and CPT+SFT both underperform the untouched baseline; only the SFT-from-Instruct variants beat it. Full GPT-4o-judged breakdown (factual_accuracy/coherence/naturalness/completeness, not just accuracy) lives in `/uss/skavlak/version_3/eval_results/*_scored.jsonl`.
+
+This whole pipeline (CPT → SFT → eval → scoring) ran to completion via unattended auto-resubmit chains (`8b/launch_run3_*_chain.sh`).
+
+## Seed pool audit (this session, 4 rounds)
+
+`data_prep/seeds.json` went through four rounds of bug-fixing this session, prompted by repeated external audits (several of which turned out to be stale or wrong when checked against the actual file — **always independently verify scientific claims against primary literature via web search before trusting an audit or applying a fix; do not trust citations at face value**).
+
+- Fixed: instruction/output mismatches, facts leaking into instruction fields, wrong scientific claims (reversed TAP/MHC-I mechanism, fabricated temperature figures, wrong enzyme assignments, missing/incomplete facts), miscategorized seeds, corrupted notes fields (bad string concatenation), a correction-preamble stylistic tic, editorial "explaining the edit" language leaking into outputs, ungrammatical clauses, and one content duplication (swapped for a verified alternative).
+- Quarantined (not deleted — moved to `data_prep/seeds_quarantine.json` with a reason): 9 seeds, mostly unverifiable or contradicted-by-literature claims.
+- One item (`gen-rc-011`, WhiB4/biofilm claim) deliberately left unresolved — no verifiable evidence either way; needs Adrian or further literature work.
+- Final state: **50 active seeds + 9 quarantined = 59 total**, nothing lost. The `notes` field was stripped from the active pool (`generate_training_data.py` never reads it — it was purely a human-review artifact); still present in the quarantine file for reference.
+- Still open, not yet addressed (design/systemic, not bugs): `ambiguous: false` on every single record; 2 near-duplicate SSB seeds; the generic "understand a concept or gene" instruction repeated ~9 times in `closed_book_qa`.
+- Backups of each fix round: `data_prep/seeds.json.bak` through `.bak4`.
+
+## Run 4 (COMPLETE — isolated seed-quality test)
+
+Purpose-built to answer one question: does fixing the seeds actually change anything downstream? Reused Run 3's corpus, MCQ eval set, and (implicitly, since this condition doesn't use it) CPT checkpoint untouched — only regenerated SFT data from the fixed seeds and retrained the one condition that had beaten baseline in Run 3 (SFT-from-Instruct).
+
+- **SFT data**: same 24,000-chunk sample as Run 3, sharded across up to 8 GPUs this time → **40,252 examples**. Output: `/uss/skavlak/version_3/training_data_run4.jsonl`. (Gotcha hit along the way: `generate_training_data.py` ignores a custom `--output` basename when sharded and always writes `training_data_shard_{id}.jsonl` — concatenate from that pattern, not your intended output name.)
+- **Training**: identical hyperparameters to Run 3 (rank-64 QLoRA, lr 2e-5, 2 epochs, effective batch 32), run at both 2 GPUs (2h41m) and 8 GPUs (51 min, grad-accum dropped 16→4 to hold effective batch constant) — a clean same-recipe GPU-scaling data point.
+- **Checkpoint**: `/uss/skavlak/tb_sft_instruct_run4_qlora_checkpoints/final`.
+- **Result, full comparison vs Run 3 and baseline:**
+
+| Metric | Base | Run 3 (pre-fix seeds) | Run 4 (fixed seeds) |
+|---|---|---|---|
+| Accuracy | 0.8725 | 0.8812 | 0.8825 |
+| Factual accuracy | 4.555 | 4.491 | 4.490 |
+| Coherence | 4.753 | 4.731 | 4.714 |
+| Naturalness | 4.834 | 4.830 | 4.835 |
+| Completeness | 4.524 | 4.476 | 4.494 |
+
+**No detectable movement on any metric** — all differences are within noise at n=800.
+
+### Diagnosis: eval/SFT-data misalignment (unresolved, worth revisiting)
+
+Comparing real MCQ eval questions (closed-form, 4-choice, grounded in one specific passage — tests recall/comprehension) against real SFT training examples (open-ended consultation/critique/hypothesis-generation — roughly half the categories aren't grounded in any passage at all) shows they're testing genuinely different skills. This is a plausible explanation for Run 4's flat result that's independent of whether the seed fixes were real improvements — the eval may simply be insensitive to this kind of change.
+
+Proposed but not built: a category-aligned, rubric-graded held-out eval mirroring the SFT categories (GPT-4o judge scoring against category-specific rubrics — "did it catch the false premise," "did it propose a real distinguishing experiment" — rather than correctness-against-answer-key). Would need either curated gold eval items or generated-and-verified ones.
+
+**Interim cheap check (done)**: `data_prep/eyeball_comparison.md` — 30 held-out, analysis-heavy-category prompts (premise_correction, result_interpretation, hypothesis_generation, methodology_critique, gene_target_prioritization) pulled from the same held-out corpus split as the MCQ set, generated via `data_prep/run_eyeball_compare.py` (Base Instruct vs Run 4, greedy decoding, no scoring) for direct human reading. Built via `data_prep/run_eyeball_generation.slurm` (generates prompts by running the real generation pipeline against `corpus_v3_eval.jsonl` instead of the train split) + `run_eyeball_compare.slurm`.
+
+---
+
 ## Corpus v3 expansion (Run 2, COMPLETE)
 
 - Diagnosed that EuropePMC's free-text search covers far more open-access TB literature (93,843 papers for bare "Mycobacterium tuberculosis") than the NCBI MeSH-term queries originally used (~7,400 total).
@@ -112,7 +170,7 @@ Changes made:
 - Rewrote `data_prep/generate_training_data.py`: each chunk now gets a category assigned round-robin (shuffled first, so assignment isn't correlated with corpus file order) rather than the old random-mixed-seed-sampling approach. `format_seeds()` only shows seeds from the assigned category. Output records now carry an explicit `"category"` field, so balance is verifiable directly instead of needing an estimate.
 - Smoke-tested: 72 examples, exactly 8 per category across all 9 categories, 0 failures, quality spot-checked as good (grounded, on-topic, correctly following each category's intent).
 
-As of this writing, the seed pool has grown beyond what's described above via other contributors (Sarah, adriana, Ricardo, Nate, Melina) adding seeds independently — **check `data_prep/seeds.json` directly for current category counts rather than trusting this doc**, it's a live, actively-edited file.
+The seed pool grew beyond what's described above via other contributors (Sarah, adriana, Ricardo, Nate, Melina) adding seeds independently, then went through a 4-round audit/repair this session — see "Seed pool audit" above for the current, settled state (50 active + 9 quarantined). Check `data_prep/seeds.json` directly if this doc goes stale again.
 
 Generator model: `meta-llama/Llama-3.3-70B-Instruct` via vLLM (not GPT-4o) — deliberate choice to keep the SFT data generator independent from GPT-4o, which is the eval judge (`score_explanations.py`). Using the same model for both would risk self-preference bias (the fine-tuned model would learn to imitate GPT-4o's style, which GPT-4o would then rate favorably as judge). Estimated cost to switch to GPT-4o: ~$3,300 (654M input + 168M output tokens at standard rates) — not pursued, for the above reason, independent of cost.
 
@@ -145,52 +203,74 @@ MCQ eval set: 800 questions, exactly balanced across 4 cognitive levels (200 eac
 - training_data_miwv_v2_top10.jsonl — 4,889 examples (MIWV top 10%)
 - Superseded, kept for reference only
 
-### Corpus v3 (Run 1 + Run 2 expansion, current)
+### Corpus v3 (Run 1 + Run 2 expansion)
+- **Raw papers**: original fetch in `/uss/skavlak/tb_corpus_v3/`, the 12,976-paper expansion in `/uss/skavlak/tb_corpus_v3_extra/` (both PDFs/XMLs plus extracted JSONL).
 - `/uss/skavlak/tb_corpus_v3/corpus_v3_train.jsonl` — **live CPT training corpus, 382,700 chunks, 148.4M tokens**
 - `/uss/skavlak/tb_corpus_v3/corpus_v3_eval.jsonl` — held-out eval split, 2,950 chunks / 200 papers, protected
 - `/uss/skavlak/tb_corpus_v3/mcq_eval.jsonl` — 800-question MCQ eval set
 - `/uss/skavlak/tb_corpus_v3/archive/` — old unbalanced SFT data + shards (Run 1), not in use
-- `/uss/skavlak/tb_corpus_v3/training_data_shard_*.jsonl` — Run 2 SFT generation output, in progress
-- `/uss/skavlak/tb_corpus_v3_extra/` — raw newly-fetched papers + their extracted corpus (already merged into corpus_v3_train.jsonl)
-- MIWV scores/filtered data (`miwv_scores_v3.npy`, `training_data_miwv_v3_top10.jsonl`) — stale, computed against old data, need rescoring once Run 2 SFT data is final
+- `/uss/skavlak/tb_corpus_v3/training_data_shard_*.jsonl` — Run 2 SFT generation output, **COMPLETE: 636,520 examples** (not "in progress" — CPT/SFT training on this data was never run, see Status)
+- MIWV scores/filtered data (`miwv_scores_v3.npy`, `training_data_miwv_v3_top10.jsonl`) — stale, computed against old data, need rescoring if Run 2 is ever picked back up
+
+### Corpus v3 (Run 3 + Run 4, post-cutoff-only, current main pipeline)
+- **Raw papers**: `/uss/skavlak/version_3/papers/` (organized by year: `2024/`, `2025/`, `2026/`), metadata in `papers.csv` / `papers.jsonl` at `/uss/skavlak/version_3/`.
+- `/uss/skavlak/version_3/corpus_v3_train.jsonl` — CPT training corpus, 119,325 chunks (~32.5M words / ~40-45M BPE tokens estimated)
+- `/uss/skavlak/version_3/corpus_v3_eval.jsonl` — held-out eval split, 3,477 chunks / 200 papers — this is what both the MCQ set and the eyeball-comparison prompts are grounded in
+- `/uss/skavlak/version_3/corpus_v3_train_shuffled.jsonl` / `_shuffled_24k.jsonl` — pre-shuffled train corpus and its fixed 24,000-chunk sample, used for SFT data generation
+- `/uss/skavlak/version_3/mcq_eval.jsonl` — 800-question MCQ eval set (Run 3 + Run 4 share this)
+- `/uss/skavlak/version_3/training_data.jsonl` — Run 3's SFT data (39,996 ex, pre-fix seeds)
+- `/uss/skavlak/version_3/training_data_run4.jsonl` — Run 4's SFT data (40,252 ex, fixed seeds)
+- `/uss/skavlak/version_3/eval_results/*_scored.jsonl` — all Run 3 + Run 4 eval results, GPT-4o-judged
 
 ### Seeds
-`data_prep/seeds.json` — actively growing, multiple contributors. Check directly for current state.
+`data_prep/seeds.json` — 50 active seeds, audited and repaired (see "Seed pool audit" above). `data_prep/seeds_quarantine.json` — 9 removed-but-recoverable seeds with reasons. Backups of each fix round: `seeds.json.bak` through `.bak4`.
 
-## Checkpoints — Run 2 (v3 expanded corpus — to be created)
+## Checkpoints — Run 2 (v3 expanded corpus — never created)
 
 | Run | Location | Status |
 |-----|----------|--------|
-| 8B CPT (Run 2) | TBD, don't overwrite `tb_cpt_v3_checkpoints` (Run 1) | not started, blocked on gpu4 |
+| 8B CPT (Run 2) | TBD, don't overwrite `tb_cpt_v3_checkpoints` (Run 1) | not started, stalled on gpu4 availability, never resumed |
 | 8B SFT (method TBD: full-param or QLoRA) | TBD | not started |
 | 70B SFT (QLoRA, if pursued) | TBD | not started |
+
+## Checkpoints — Run 3 / Run 4
+
+| Run | Location | Status |
+|-----|----------|--------|
+| 8B CPT (Run 3, QLoRA) | `/uss/skavlak/tb_cpt_run3_qlora_checkpoints` (+ merged at `tb_cpt_run3_qlora_merged`) | COMPLETE |
+| 8B SFT, from raw base (Run 3) | `/uss/skavlak/tb_llm_run3_qlora_checkpoints` | COMPLETE |
+| 8B CPT+SFT (Run 3) | `/uss/skavlak/tb_sft_cpt_run3_qlora_checkpoints` | COMPLETE |
+| 8B SFT from Instruct base (Run 3) | `/uss/skavlak/tb_sft_instruct_run3_qlora_checkpoints` | COMPLETE |
+| 8B SFT from Instruct base, 200K (Run 3) | `/uss/skavlak/tb_sft_instruct_200k_run3_qlora_checkpoints` | COMPLETE |
+| 8B SFT from Instruct base (Run 4, fixed seeds) | `/uss/skavlak/tb_sft_instruct_run4_qlora_checkpoints` | COMPLETE |
 
 ## Folder structure
 
 ```
 finetuning/
-  8b/                      — Run 1 8B SLURM scripts (full-parameter)
-    run_cpt.slurm
-    run_training.slurm
-    run_sft_cpt.slurm
-    run_training_miwv.slurm
-    run_cpt_instruct.slurm, run_training_instruct.slurm, etc. — instruct-base attempt, broken (see Known bugs)
-  8b_large_batch/          — batch~8000 ablation, misreading of Marek et al. paper, built, never run
-  8b_small_batch/          — corrected batch-size ablation (batch 16, paper-scaled beta2/LR), built, never run
+  8b/                      — all 8B SLURM scripts: Run 1 (full-parameter), Run 2/3/4 (QLoRA),
+                             plus auto-resubmit/launch chains (launch_run3_*, launch_run4_chain.sh)
+  8b_small_batch/          — Marek et al. batch-size ablation, built, never run
   70b/                     — 70B SLURM scripts (QLoRA)
-    run_training.slurm     — 70B SFT (8 GPUs, 2 epochs, QLoRA)
-  data_prep/               — corpus, generation, MIWV, seeds
-    fetch_europmc_batch.py — main literature fetch script, TITLE/ABSTRACT-restricted + retraction filter
-    fetch_pmc_batch.py     — legacy NCBI MeSH-query fetch, superseded by fetch_europmc_batch.py
-    generate_training_data.py — SFT generation, category-balanced (Run 2)
-    auto_resubmit_generation.sh — handles SLURM 4hr time-limit resubmission for generation shards
-    seeds.json              — seed task pool, actively growing
-  refs/                    — papers and docs
-  train_cpt.py             — supports --adam-beta1/--adam-beta2/--lr-scheduler-type (added for Marek et al. experiments); no LoRA/QLoRA support yet
+  eval/                    — early/misc eval SLURM scripts
+  data_prep/               — corpus, generation, seeds, eval pipeline, seed-audit scripts
+    fetch_europmc_batch.py      — main literature fetch (Run 2), TITLE/ABSTRACT-restricted + retraction filter
+    fetch_postcutoff_papers.py  — Run 3/4's contamination-controlled fetch (post-Dec-2023-cutoff only)
+    generate_training_data.py  — SFT generation, category-balanced; SEED_PATH fixed to seeds.json
+    evaluate_emcqa.py / score_explanations.py — eval pipeline (inference, then GPT-4o judge)
+    generate_mcq.py             — builds the MCQ eval set from held-out corpus chunks
+    seeds.json                  — active seed pool (50), audited this session
+    seeds_quarantine.json       — 9 quarantined seeds, with reasons
+    apply_seed_fixes*.py        — the 4 seed-audit fix-batch scripts (one-off, not a repeatable pipeline)
+    run_eyeball_generation.slurm / run_eyeball_compare.py — the held-out qualitative comparison (Run 4 diagnosis)
+  refs/                    — reference papers/PDFs
+  figures/                 — generated plots
+  train_cpt.py             — supports --bits/--lora-rank (QLoRA, added for Run 3) and full-parameter FSDP
   train_sft.py             — supports --bits/--lora-rank (QLoRA) and --adam-beta1/--adam-beta2/--lr-scheduler-type
-  mtubercolosis/           — old proteomics corpus (v1/v2, keep for reference)
-/uss/skavlak/tb_corpus_v3/       — v3 corpus, all large files (Run 1 + Run 2)
+  mtubercolosis/           — old proteomics corpus (v1/v2, keep for reference, gitignored — too large/raw for git)
+/uss/skavlak/tb_corpus_v3/       — v3 corpus + raw papers, all large files (Run 1 + Run 2)
 /uss/skavlak/tb_corpus_v3_extra/ — Run 2 newly-fetched papers, already merged into corpus_v3_train.jsonl
+/uss/skavlak/version_3/          — Run 3/4 corpus + raw papers + SFT data + eval results (current main pipeline)
 ```
 
 ## MIWV Data Selection
