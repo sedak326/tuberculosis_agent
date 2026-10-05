@@ -1,0 +1,49 @@
+#!/bin/bash
+#SBATCH --job-name=tb_sft_cpt_miwv
+#SBATCH --nodelist=gpu4
+#SBATCH --partition=compute-gpu4
+#SBATCH --ntasks=1
+#SBATCH --gpus=2
+#SBATCH --cpus-per-task=16
+#SBATCH --mem=128G
+#SBATCH --time=06:00:00
+#SBATCH --output=/home/skavlak/finetuning/logs/sft_cpt_miwv_%j.log
+#SBATCH --error=/home/skavlak/finetuning/logs/sft_cpt_miwv_%j.err
+
+mkdir -p /home/skavlak/finetuning/logs
+
+CPT_DIR=/uss/skavlak/tb_cpt_v3_checkpoints
+CPT_FINAL=$(ls -td "$CPT_DIR"/checkpoint-* 2>/dev/null | while read ckpt; do [ -f "$ckpt/trainer_state.json" ] && echo "$ckpt" && break; done)
+OUTPUT_DIR=/uss/skavlak/tb_sft_cpt_miwv_v3_checkpoints
+
+TORCHRUN=/home/skavlak/miniconda3/envs/autorag/bin/torchrun
+
+RESUME_FROM=""
+if [ -d "$OUTPUT_DIR" ]; then
+    LATEST=$(ls -td "$OUTPUT_DIR"/checkpoint-* 2>/dev/null | while read ckpt; do
+        [ -f "$ckpt/trainer_state.json" ] && echo "$ckpt" && break
+    done)
+    [ -n "$LATEST" ] && RESUME_FROM="--resume-from $LATEST"
+fi
+
+echo "Starting CPT+SFT+MIWV on $(hostname)"
+echo "Base model : $CPT_FINAL"
+echo "Output dir : $OUTPUT_DIR"
+[ -n "$RESUME_FROM" ] && echo "Resuming   : $RESUME_FROM"
+
+$TORCHRUN \
+    --nproc_per_node=2 \
+    --master_port=29502 \
+    /home/skavlak/finetuning/train_sft.py \
+    --data        /uss/skavlak/tb_corpus_v3/training_data_miwv_v3_top10.jsonl \
+    --model       "$CPT_FINAL" \
+    --tokenizer   meta-llama/Llama-3.1-8B-Instruct \
+    --output-dir  "$OUTPUT_DIR" \
+    --epochs      3 \
+    --lr          2e-5 \
+    --batch-size  4 \
+    --grad-accum  8 \
+    --max-seq-len 2048 \
+    $RESUME_FROM
+
+echo "Training complete."

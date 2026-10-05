@@ -1,0 +1,101 @@
+[
+  {
+    "id": "hack-20260602114610928",
+    "submitted_at": "2026-06-02T11:46:10.928229",
+    "submitter": "Ricardo",
+    "category": "research_pipeline",
+    "ambiguous": false,
+    "instruction": "The user has a question about experimental design or protocol for TB research. Answer with the specificity of someone who has worked under BSL-3 conditions.",
+    "input": "Protein–protein interactions control the diverse and essential molecular processes inside the cell. To maintain the cellular physiology, protein kinases not only signal their substrates through reversible phosphorylation, but they also physically interact with them. PknI, a serine/threonine protein kinase of Mycobacterium tuberculosis is known to be important for cellular homoeostasis. In this study, we have identified the interacting proteins for PknI. We screened for proteins interacting with PknI using an in vitro assay, Far-western blot. This protein kinase specifically interacts with two peroxidase proteins of M. tuberculosis, Rv2159c and Rv0148. The PknI–Rv2159c interaction pair was further studied for the critical amino acid residues in Rv2159c that are responsible for the interaction. Rv2159c, a hypothetical protein is predicted to be an antioxidant with peroxidase activity. We performed homology modelling of Rv2159c protein and molecular docking using multiple docking servers such as Z-Dock and ClusPro. Further, the most favorable conformation of PknI–Rv2159c interaction was obtained using molecular dynamics simulation. The critical amino acid residues of the Rv2159c involved in interaction with PknI were identified. Mutation and docking analysis showed that the Ala1–Gly2–Trp3 residues in Rv2159c structure are responsible for the interaction. The free binding energy between the wild type and mutant complexes using MM-GBSA has provided insight about the stability of PknI–Rv2159c interaction. We propose that, PknI physically interacts with Rv2159c both in vitro and in silico studies.",
+    "output": "We screened for proteins interacting with PknI using an in vitro assay, Far-western blot. This protein kinase specifically interacts with two peroxidase proteins of M. tuberculosis, Rv2159c and Rv0148. The PknI–Rv2159c interaction pair was further studied for the critical amino acid residues in Rv2159c that are responsible for the interaction. Rv2159c, a hypothetical protein is predicted to be an antioxidant with peroxidase activity. We performed homology modelling of Rv2159c protein and molecular docking using multiple docking servers such as Z-Dock and ClusPro. Further, the most favorable conformation of PknI–Rv2159c interaction was obtained using molecular dynamics simulation. The critical amino acid residues of the Rv2159c involved in interaction with PknI were identified. Mutation and docking analysis showed that the Ala1–Gly2–Trp3 residues in Rv2159c structure are responsible for the interaction.",
+    "notes": "QUARANTINED: verbatim copy of input abstract as output, no question asked"
+  },
+  {
+    "id": "hack-20260602115059397",
+    "submitted_at": "2026-06-02T11:50:59.397084",
+    "submitter": "Melina",
+    "category": "research_pipeline",
+    "ambiguous": false,
+    "instruction": "Expression and purification of recombinant His-tagged proteins. Over-expression of the cloned genes was induced following incubation of BL21 strain carrying the expression plasmids with 1 mM IPTG for 4 h at 37 °C. The recombinant proteins were produced in the soluble form in Escherichia coli BL21 and purified on Ni-NTA columns (Qiagen) as recommended by the supplier. The final elutions were checked by SDS–PAGE for purity before dialyzing with 20 mM Tris–HCl at pH 7.2 containing 1 mM DTT and 5% glycerol.",
+    "input": "What were the conditions for the in vitro activity assay of PknH kinase phosphorylation?",
+    "output": "In vitro kinase assay. The in vitro kinase reactions contained 25 mM Tris–HCl, pH 7.2, 5 mM MgCl2, 2 mM MnCl2, 1 mM DTT, 10–300 ng of recombinant PknH kinase, and 0–500 nM of substrates. The reactions were started by addition of 10 μCi of γ-[32P]ATP (Perkin-Elmer) followed by 5–30 min incubation at room temperature (21 °C). At the end of the incubation period, reactions were stopped by the addition of SDS-sample loading buffer and heated at 95 °C for 5 min. Samples were resolved by SDS–PAGE on 8% polyacrylamide gels and the gels were silver stained, and dried. The 32P-radioactively labeled protein bands were detected using a PhosphorImager SI (Molecular Dynamics). Bands corresponding to the phosphorylated proteins were cut out and subjected to scintillation count (Beckman Coulter LS 6500).",
+    "notes": "QUARANTINED: instruction passage (expression/purification) doesn't match the question/answer topic (kinase assay conditions) — mismatched passage, output is also a verbatim methods section"
+  },
+  {
+    "id": "hack-20260602112809789",
+    "submitted_at": "2026-06-02T11:28:09.789335",
+    "submitter": "Ricardo",
+    "category": "closed_book_qa",
+    "ambiguous": false,
+    "instruction": "The user wants to understand a concept or gene in M. tuberculosis. Use your knowledge of the literature to give a clear, accurate explanation.",
+    "input": "What is the overall mechanism of inhibition of InhA type proteins ?",
+    "output": "InhA is inhibited by a series of chemical compounds that have a arylamide series of compounds, all of which contain a piperazine or piperidine as the core structure. The data suggest that compounds with a single electron-withdrawing substituent at the meta-position of ring B are the most potent inhibitors.   The inhibition is done at the amide carbonyl group oxygen is hydrogen-bonded to the 2′-hydroxyl moiety of the nicotinamide ribose and the hydroxyl group of Tyr158 .",
+    "notes": "QUARANTINED: InhA mechanism answer omits isoniazid/KatG/INH-NAD adduct entirely — the central fact for this question; also ungrammatical"
+  },
+  {
+    "id": "hack-20260602112841066",
+    "submitted_at": "2026-06-02T11:28:41.066227",
+    "submitter": "Sarah",
+    "category": "closed_book_qa",
+    "ambiguous": false,
+    "instruction": "Given a passage from the TB literature and a researcher's request, explain the key findings in clear, accessible terms without oversimplifying the biology.",
+    "input": "Are the MtuSSB, EcoSSB, and HMtSSB similar in structure?",
+    "output": "The globular core of the molecule in different subunits in the two forms and those in Escherichia coli SSB (EcoSSB) and human mitochondrial SSB (HMtSSB) have a similar structure, although the three loops exhibit considerable structural variation. However, the tetrameric MtuSSB exhibits an as-yet-unobserved quaternary association.",
+    "notes": "QUARANTINED: instruction promises a passage; none supplied"
+  },
+  {
+    "id": "hack-20260602114408923",
+    "submitted_at": "2026-06-02T11:44:08.923752",
+    "submitter": "Seda",
+    "category": "research_pipeline",
+    "ambiguous": false,
+    "instruction": "The user has a question about experimental design or protocol for TB research. Answer with the specificity of someone who has worked under BSL-3 conditions.",
+    "input": "I wanna investigate the impact of Rv1987 on host cytokine responses and T cell polarization in mouse aerosol model. How do I do that?",
+    "output": "Very broadly speaking you could use a recombinant M. smegmatis mc2155 strain that overexpressed Rv1987 protein (named MS1987) and use it to infect C57BL/6 mice. You could then use mc2155 harbored the empty vector (named MSVec) as a control.\n\nDo you want me to go into more detail?",
+    "notes": "expand on this based on the methodology in the actual paper | QUARANTINED: answer proposes a different organism/route (M. smegmatis in mice) than the mouse-aerosol-Mtb model the question asks about, without flagging the substitution; ends with a deferral instead of an answer"
+  },
+  {
+    "id": "hack-20260602115032809",
+    "submitted_at": "2026-06-02T11:50:32.809744",
+    "submitter": "adriana",
+    "category": "research_pipeline",
+    "ambiguous": false,
+    "instruction": "The user has a question about experimental design or protocol for TB research. Answer with the specificity of someone who has worked under BSL-3 conditions.",
+    "input": "Why did they use estriol for the bond structure?",
+    "output": "CYP51 is a sterol 14 alpha- demethylase, estriol lacks a methyl group in the 14 position. This is a good substrate analog to mimic the native sterol binding.",
+    "notes": "QUARANTINED: dangling reference ('they') with no antecedent; instruction promises BSL-3 protocol specificity, answer is structural biology"
+  },
+  {
+    "id": "hack-20260602120741457",
+    "submitted_at": "2026-06-02T12:07:41.457082",
+    "submitter": "adriana",
+    "category": "closed_book_qa",
+    "ambiguous": false,
+    "instruction": "Given a passage from the TB literature and a researcher's request, explain the key findings in clear, accessible terms without oversimplifying the biology.",
+    "input": "Is azole commonly used to target CYP51, why are azoles becoming less effective?",
+    "output": "Azoles are antifungal drugs that inhibit CYP51. Azole resistance occurs when mutations in CYP51 or related pathways prevent the drugs from working effectively.",
+    "notes": "QUARANTINED: imports a fungal-azole-resistance question into a TB dataset with no signposting; Mtb CYP51 is not a validated TB drug target; instruction promises a passage that's absent"
+  },
+  {
+    "id": "hack-20260602114525132",
+    "submitted_at": "2026-06-02T11:45:25.132866",
+    "submitter": "Nate",
+    "category": "hypothesis_generation",
+    "ambiguous": false,
+    "instruction": "Given an experimental observation in M. tuberculosis, propose the most plausible molecular mechanisms and suggest an experiment that would distinguish between them.",
+    "input": "Given that RsfA activation is triggered by a reducing environment, under what specific physiological conditions or host intracellular situations would we expect RsfA to be activated in M. tuberculosis?",
+    "output": "This cascade is likely triggered when M. tuberculosis encounters heavily reducing microenvironments, such as the severely hypoxic, necrotic core of a mature host granuloma. Alternatively, this reducing state may occur as a metabolic \"all-clear\" signal inside host macrophages after the bacterium has successfully neutralized the host's initial oxidative burst using its internal antioxidant defenses.\n\nTo confirm these hypotheses, researchers could generate an M. tuberculosis mutant strain expressing a non-reducible variant of RsfA by mutating the key cysteine residues (e.g., $\\text{Cys73Ala}$ or $\\text{Cys109Ala}$), preventing the formation and subsequent reduction of the crucial disulfide bond. This mutant strain, alongside a wild-type control, would be subjected to both anaerobic, hypoxic chamber conditions (mimicking the granuloma) and post-oxidative stress challenges inside activated macrophage cell cultures. By utilizing Western blotting or mass spectrometry to track UsfX–RsfA complex formation, paired with RT-qPCR to measure the expression of downstream SigF-regulated genes, researchers can verify if blocking RsfA reduction successfully halts SigF activation and decreases bacterial survival during hypoxia and post-stress recovery.",
+    "notes": "QUARANTINED: could not independently confirm 'RsfA' as a named Mtb regulator in the literature (found a distinct, real protein 'RsrA' instead) — possible naming error, quarantined pending clarification rather than guessing which name is correct"
+  },
+  {
+    "id": "hack-20260602113348616",
+    "submitted_at": "2026-06-02T11:33:48.616380",
+    "submitter": "Sarah",
+    "category": "closed_book_qa",
+    "ambiguous": false,
+    "instruction": "The user wants to understand a concept or gene in M. tuberculosis. Use your knowledge of the literature to give a clear, accurate explanation.",
+    "input": "What is the role of single-stranded DNA-binding protein in mtb?",
+    "output": "Single-stranded DNA-binding protein (SSB) is an essential protein necessary for the functioning of the DNA replication, repair and recombination machineries.",
+    "notes": "QUARANTINED: part of MtuSSB redundancy cluster (4 near-duplicate seeds from 1-2 papers) — generic textbook definition, no added domain value over the other kept seeds in the cluster"
+  }
+]
