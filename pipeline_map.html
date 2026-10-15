@@ -1,0 +1,248 @@
+<title>TB LLM Pipeline Map</title>
+<style>
+/* layout: top tab bar switches between 4 full-width vertical pipeline diagrams,
+   each on a fixed "printout" card so it stays legible in both page themes */
+:root{
+  --bg:#faf9f5; --surface:#ffffff; --fg:#1b1e1c; --muted:#6b6f68; --accent:#2f6b5e; --line:#e2ddd1;
+  --paper:#fbfaf6; --paper-fg:#1b1e1c; --paper-line:#d8d2c3;
+  --ok:#2f6b4f; --ok-bg:#e3f0e8; --bad:#a94442; --bad-bg:#f8e9e8; --warn:#9c7a1f; --warn-bg:#fbf1da;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#14171a; --surface:#1c2023; --fg:#e9e7e1; --muted:#9a9d95; --accent:#5fae9b; --line:#30343a;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#14171a; --surface:#1c2023; --fg:#e9e7e1; --muted:#9a9d95; --accent:#5fae9b; --line:#30343a;
+  color-scheme: dark;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--fg);font:15px/1.55 'IBM Plex Sans',system-ui,sans-serif;padding-inline:16px}
+h1,h2{font-family:'IBM Plex Sans',system-ui,sans-serif;text-wrap:balance;margin:0}
+.mono,code,.filepath{font-family:'IBM Plex Mono',ui-monospace,monospace}
+header{max-width:1100px;margin:0 auto;padding-block:24px 8px}
+header h1{font-size:22px;font-weight:600;letter-spacing:-0.01em}
+header p{color:var(--muted);margin:6px 0 0;font-size:14px;max-width:70ch}
+.wrap{max-width:1100px;margin:0 auto;padding-bottom:48px}
+nav.tabs{display:flex;gap:6px;flex-wrap:wrap;margin:18px 0 14px;border-bottom:1px solid var(--line);padding-bottom:0}
+nav.tabs button{
+  font:inherit;font-weight:500;background:none;border:none;color:var(--muted);
+  padding:9px 14px;border-radius:8px 8px 0 0;cursor:pointer;border-bottom:2px solid transparent;margin-bottom:-1px;
+}
+nav.tabs button:hover{color:var(--fg)}
+nav.tabs button.on{color:var(--accent);border-bottom:2px solid var(--accent);background:var(--surface)}
+section.panel{display:none}
+section.panel.on{display:block}
+.intro{color:var(--muted);font-size:13.5px;margin:4px 0 16px;max-width:78ch}
+.card{
+  background:var(--paper);color:var(--paper-fg);border:1px solid var(--paper-line);border-radius:12px;
+  padding:18px 18px 10px;overflow-x:auto;
+}
+.card pre.mermaid{margin:0}
+.legend{display:flex;gap:16px;flex-wrap:wrap;margin:14px 0 6px;font-size:12.5px;color:var(--muted)}
+.legend span{display:inline-flex;align-items:center;gap:6px}
+.swatch{width:12px;height:12px;border-radius:3px;display:inline-block;border:1.5px solid}
+.sw-data{background:#eef2ee;border-color:#5b7a6e}
+.sw-stalled{background:#f8e9e8;border-color:#a94442;border-style:dashed}
+.sw-result{background:#dfeee6;border-color:#2f6b4f}
+.sw-progress{background:#fbf1da;border-color:#9c7a1f;border-style:dashed}
+table{border-collapse:collapse;width:100%;margin-top:14px;font-size:13.5px}
+th,td{text-align:left;padding:6px 10px;border-bottom:1px solid var(--line)}
+th{color:var(--muted);font-weight:500;font-size:12.5px;text-transform:uppercase;letter-spacing:.02em}
+td.num{font-family:'IBM Plex Mono',monospace}
+.status-complete{color:var(--ok)}
+.status-stalled{color:var(--bad)}
+.status-progress{color:var(--warn)}
+footer{color:var(--muted);font-size:12.5px;padding:8px 0 40px;max-width:78ch}
+@media (max-width:640px){.card{padding:14px 10px 6px}}
+</style>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+
+<header>
+  <h1>TB LLM fine-tuning — pipeline map</h1>
+  <p>Every stage of every run, in order: what script touched what file, which GPUs it used, and how it ended. Dashed red = never actually run. Dashed amber = in progress right now. Solid green = scored result.</p>
+</header>
+
+<div class="wrap">
+  <nav class="tabs">
+    <button class="on" data-tab="r1">Run 1</button>
+    <button data-tab="r2">Run 2</button>
+    <button data-tab="r3">Run 3</button>
+    <button data-tab="r4">Run 4</button>
+  </nav>
+
+  <section class="panel on" id="r1">
+    <p class="intro">Original pipeline. Full-parameter fine-tuning on both 8B and the SFT step, QLoRA only for the 70B SFT conditions. <strong>Complete</strong> — all 9 conditions scored, diagnosed as catastrophic forgetting on the 8B full-parameter runs.</p>
+    <div class="card">
+<pre class="mermaid">
+flowchart TD
+    classDef data fill:#eef2ee,stroke:#5b7a6e,color:#1a2420
+    classDef result fill:#dfeee6,stroke:#2f6b4f,color:#143326,stroke-width:2px
+
+    A["fetch papers<br/>broader TB MeSH queries"] --> B["tb_corpus_v3/<br/>6,328 papers<br/>(6,238 = dupes of v1/v2 corpus)"]:::data
+    B -->|"extract_corpus.py"| C["corpus_v3.jsonl"]:::data
+    C -->|"split_corpus.py (seed=42)<br/>merge with v1/v2 proteomics corpus<br/>hold out 200 papers"| D["corpus_v3_train.jsonl<br/>56.9M tokens"]:::data
+    C --> E["corpus_v3_eval.jsonl<br/>200 papers held out"]:::data
+    D -->|"run_cpt.slurm<br/>full-parameter FSDP, 4 GPU"| F["tb_cpt_v3_checkpoints"]:::data
+    D -->|"generate_training_data.py<br/>old 8-category seed pool, unbalanced"| G["training_data_v3.jsonl<br/>48,782 examples"]:::data
+    G -->|"select_data_miwv.py<br/>top 10%"| H["MIWV subset<br/>4,878 examples"]:::data
+    E -->|"generate_mcq.py (GPT-4o)"| MCQ["mcq_eval.jsonl<br/>800 questions"]:::data
+
+    D --> I1["Base 8B Instruct"]
+    G -->|"train_sft.py<br/>full-param FSDP, 2 GPU"| I2["8B SFT"]
+    H -->|"train_sft.py<br/>full-param FSDP, 2 GPU"| I3["8B SFT + MIWV"]
+    F -->|"train_sft.py on G"| I4["8B CPT + SFT"]
+    F -->|"train_sft.py on H"| I5["8B CPT + SFT + MIWV"]
+    D --> J1["Base 70B raw"]
+    D --> J2["Base 70B Instruct"]
+    G -->|"train_sft.py<br/>QLoRA, 8 GPU"| J3["70B SFT"]
+    H -->|"train_sft.py<br/>QLoRA, 8 GPU"| J4["70B SFT + MIWV"]
+
+    I1 & I2 & I3 & I4 & I5 & J1 & J2 & J3 & J4 -->|"evaluate_emcqa.py<br/>+ score_explanations.py (GPT-4o judge)"| R["RESULT — 9/9 scored<br/>0.561 base -> 0.489 SFT (worse!)<br/>0.318 SFT+MIWV (collapse)<br/>best: 70B SFT 0.910<br/>DIAGNOSIS: catastrophic forgetting<br/>(0.006 tokens / trainable-param)"]:::result
+    MCQ --> R
+</pre>
+    </div>
+    <div class="legend">
+      <span><i class="swatch sw-data"></i>data / checkpoint</span>
+      <span><i class="swatch sw-result"></i>scored result</span>
+    </div>
+    <table>
+      <tr><th>Condition</th><th>CPT</th><th>SFT data</th><th>Accuracy</th></tr>
+      <tr><td>Base 8B Instruct</td><td>—</td><td>—</td><td class="num">0.561</td></tr>
+      <tr><td>8B SFT</td><td>no</td><td>full (48,782)</td><td class="num">0.489</td></tr>
+      <tr><td>8B SFT + MIWV</td><td>no</td><td>top 10% (4,878)</td><td class="num">0.318</td></tr>
+      <tr><td>8B CPT + SFT</td><td>yes</td><td>full</td><td class="num">0.505</td></tr>
+      <tr><td>8B CPT + SFT + MIWV</td><td>yes</td><td>top 10%</td><td class="num">0.605</td></tr>
+      <tr><td>Base 70B raw</td><td>—</td><td>—</td><td class="num">0.020</td></tr>
+      <tr><td>Base 70B Instruct</td><td>—</td><td>—</td><td class="num">0.905</td></tr>
+      <tr><td>70B SFT (QLoRA)</td><td>no</td><td>full</td><td class="num">0.910</td></tr>
+      <tr><td>70B SFT + MIWV (QLoRA)</td><td>no</td><td>top 10%</td><td class="num">0.770</td></tr>
+    </table>
+  </section>
+
+  <section class="panel" id="r2">
+    <p class="intro">Corpus-expansion effort. Data preparation finished end to end — <strong>but training itself was never run.</strong> CPT stalled waiting for gpu4 and was never resumed; nothing downstream of it exists.</p>
+    <div class="card">
+<pre class="mermaid">
+flowchart TD
+    classDef data fill:#eef2ee,stroke:#5b7a6e,color:#1a2420
+    classDef stalled fill:#f8e9e8,stroke:#a94442,color:#5c1f1f,stroke-dasharray: 4 3
+
+    A["fetch_europmc_batch.py<br/>TITLE/ABSTRACT-restricted,<br/>excludes retracted pubs"] --> B["tb_corpus_v3_extra/<br/>12,976 new verified papers"]:::data
+    B -->|"extract_corpus.py"| C["244,951 chunks<br/>91.66M tokens"]:::data
+    C -->|"merge into corpus_v3_train.jsonl<br/>(excl. 19 eval-colliding papers)"| D["corpus_v3_train.jsonl<br/>382,700 chunks, 148.4M tokens"]:::data
+    Seeds["seeds.json redesign<br/>8 -> 10 categories<br/>(+methodology_critique, +structured_extraction)"] --> E
+    D -->|"generate_training_data.py<br/>16-shard SLURM array, 2 GPU/shard"| E["training_data_shard_*.jsonl<br/>636,520 examples — COMPLETE"]:::data
+    D -->|"run_cpt.slurm<br/>full-parameter FSDP planned, 4 GPU"| F["8B CPT<br/>NEVER RUN<br/>(blocked on gpu4 availability, never resumed)"]:::stalled
+    F -.->|"never reached"| G["SFT training<br/>NEVER RUN"]:::stalled
+    G -.->|"never reached"| H["Evaluation<br/>NO RESULTS EXIST FOR RUN 2"]:::stalled
+</pre>
+    </div>
+    <div class="legend">
+      <span><i class="swatch sw-data"></i>data / checkpoint — complete</span>
+      <span><i class="swatch sw-stalled"></i>never run</span>
+    </div>
+  </section>
+
+  <section class="panel" id="r3">
+    <p class="intro">Standalone, contamination-controlled replication — built only from papers published after Llama's pretraining cutoff, so CPT can't re-expose the model to memorized text. QLoRA throughout. <strong>Complete</strong> — all 6 conditions scored.</p>
+    <div class="card">
+<pre class="mermaid">
+flowchart TD
+    classDef data fill:#eef2ee,stroke:#5b7a6e,color:#1a2420
+    classDef result fill:#dfeee6,stroke:#2f6b4f,color:#143326,stroke-width:2px
+
+    A["fetch_postcutoff_papers.py<br/>post-Dec-2023-cutoff only<br/>(EuropePMC + OpenAlex)"] --> B["version_3/papers/{2024,2025,2026}/<br/>7,696 papers"]:::data
+    B -->|"extract_corpus.py x3 (per year)<br/>+ concatenate"| C["corpus_all.jsonl"]:::data
+    C -->|"split_corpus.py<br/>--old empty.jsonl (standalone)<br/>n-eval=200, seed=42"| D["corpus_v3_train.jsonl<br/>119,325 chunks"]:::data
+    C --> E["corpus_v3_eval.jsonl<br/>3,477 chunks / 200 papers"]:::data
+    D -->|"shuffle (seed 42) + truncate 24k"| D2["corpus_v3_train_shuffled_24k.jsonl"]:::data
+    D -->|"run_cpt_run3_qlora.slurm<br/>QLoRA, ~4 GPU, ~3h41m total"| F["tb_cpt_run3_qlora_checkpoints<br/>(+ merged)"]:::data
+    D2 -->|"generate_training_data.py<br/>vLLM Llama-3.3-70B, 2 GPU<br/>pre-fix seeds.json"| G["training_data.jsonl<br/>39,996 examples"]:::data
+    E -->|"generate_mcq.py (GPT-4o)"| MCQ["mcq_eval.jsonl<br/>800 questions"]:::data
+
+    D --> I1["Base 8B raw"]
+    D --> I2["Base 8B Instruct"]
+    G -->|"train_sft.py<br/>QLoRA, 2 GPU, from raw base"| I3["SFT from raw base"]
+    F -->|"train_sft.py on G"| I4["CPT + SFT"]
+    G -->|"train_sft.py<br/>QLoRA, 2 GPU, from Instruct base"| I5["SFT from Instruct"]
+    G -->|"train_sft.py QLoRA<br/>200K-example variant"| I6["SFT from Instruct, 200K ex"]
+
+    I1 & I2 & I3 & I4 & I5 & I6 -->|"evaluate_emcqa.py + score_explanations.py<br/>unattended auto-resubmit chains"| R["RESULT — 6/6 scored<br/>0.800 raw base / 0.873 Instruct baseline<br/>0.838 SFT-raw, 0.839 CPT+SFT (BELOW baseline)<br/>0.881 SFT-Instruct, 0.886 SFT-Instruct-200K (above)"]:::result
+    MCQ --> R
+</pre>
+    </div>
+    <div class="legend">
+      <span><i class="swatch sw-data"></i>data / checkpoint</span>
+      <span><i class="swatch sw-result"></i>scored result</span>
+    </div>
+    <table>
+      <tr><th>Condition</th><th>Accuracy</th></tr>
+      <tr><td>Base (raw, non-instruct)</td><td class="num">0.800</td></tr>
+      <tr><td>Base (Instruct, untouched)</td><td class="num">0.873</td></tr>
+      <tr><td>SFT from raw base</td><td class="num">0.838</td></tr>
+      <tr><td>CPT + SFT</td><td class="num">0.839</td></tr>
+      <tr><td>SFT from Instruct base</td><td class="num">0.881</td></tr>
+      <tr><td>SFT from Instruct base, 200K ex</td><td class="num">0.886</td></tr>
+    </table>
+  </section>
+
+  <section class="panel" id="r4">
+    <p class="intro">Isolates seed-pool quality as the only changed variable vs. Run 3 — then, when the result came back flat, spins off a whole second investigation into whether the <em>eval itself</em> was ever measuring the right thing. The lower half of this diagram is live: the aligned-eval scale-up is running right now.</p>
+    <div class="card">
+<pre class="mermaid">
+flowchart TD
+    classDef data fill:#eef2ee,stroke:#5b7a6e,color:#1a2420
+    classDef result fill:#dfeee6,stroke:#2f6b4f,color:#143326,stroke-width:2px
+    classDef progress fill:#fbf1da,stroke:#9c7a1f,color:#4a3a0f,stroke-dasharray: 4 3
+
+    Reuse["REUSED FROM RUN 3, untouched:<br/>corpus_v3_train / corpus_v3_eval, CPT checkpoint, mcq_eval.jsonl"]:::data
+    Audit["seed-pool audit, 4 rounds<br/>apply_seed_fixes.py x4<br/>independent literature verification via web search,<br/>not trusting any single prior audit"] --> Seeds["seeds.json<br/>50 active + 9 quarantined, notes field stripped"]:::data
+
+    Seeds -->|"generate_training_data.py<br/>sharded, up to 8 GPU<br/>(hit + fixed a sharding-output-filename bug)"| G["training_data_run4.jsonl<br/>40,252 examples"]:::data
+    Reuse -.-> G
+
+    G -->|"train_sft.py QLoRA, from Instruct base<br/>scaled 2 -> 8 GPU (2h41m -> 51min)"| I["SFT from Instruct (Run 4)"]
+    Reuse --> I0["Base Instruct (reused)"]
+    Reuse --> I3r["Run 3 SFT-Instruct (reused)"]
+
+    I0 & I3r & I -->|"evaluate_emcqa.py + score_explanations.py<br/>same mcq_eval.jsonl as Run 3"| R["RESULT — no detectable change<br/>0.8725 base / 0.8812 Run3 / 0.8825 Run4<br/>flat on accuracy AND all 4 judge dimensions"]:::result
+
+    R --> Diag["DIAGNOSIS<br/>eval / SFT-data question-style mismatch:<br/>MCQ = closed recall, SFT = open analysis"]:::progress
+    Diag -->|"generate_training_data.py<br/>pointed at held-out corpus_v3_eval.jsonl"| Eye["eyeball_prompts_raw(_scaled).jsonl<br/>held-out SFT-style Q+A pairs"]:::data
+    Eye -->|"run_eyeball_compare.py<br/>Base vs Run4, no scoring"| EyeCmp["eyeball_comparison.md<br/>human read, no verdict"]:::data
+
+    Eye -->|"build_aligned_mcq_from_held_out.py<br/>GPT-4o VERIFIES each held-out answer<br/>against the real passage before trusting it"| Aligned["aligned_mcq_eval*.jsonl<br/>pilot n=18 -> scaling to ~150"]:::progress
+    Aligned -->|"evaluate_emcqa.py + score_explanations.py"| R2["PILOT RESULT (n=18, noisy)<br/>0.889 base / 0.944 Run3 / 0.944 Run4<br/>still flat Run3 vs Run4 — SCALE-UP RUNNING NOW"]:::progress
+</pre>
+    </div>
+    <div class="legend">
+      <span><i class="swatch sw-data"></i>data / checkpoint</span>
+      <span><i class="swatch sw-result"></i>scored result</span>
+      <span><i class="swatch sw-progress"></i>in progress right now</span>
+    </div>
+    <table>
+      <tr><th>Metric</th><th>Base</th><th>Run 3</th><th>Run 4</th></tr>
+      <tr><td>Accuracy (800-Q MCQ)</td><td class="num">0.8725</td><td class="num">0.8812</td><td class="num">0.8825</td></tr>
+      <tr><td>Factual accuracy</td><td class="num">4.555</td><td class="num">4.491</td><td class="num">4.490</td></tr>
+      <tr><td>Coherence</td><td class="num">4.753</td><td class="num">4.731</td><td class="num">4.714</td></tr>
+      <tr><td>Naturalness</td><td class="num">4.834</td><td class="num">4.830</td><td class="num">4.835</td></tr>
+      <tr><td>Completeness</td><td class="num">4.524</td><td class="num">4.476</td><td class="num">4.494</td></tr>
+      <tr><td>Aligned-eval pilot (n=18)</td><td class="num">0.889</td><td class="num">0.944</td><td class="num">0.944</td></tr>
+    </table>
+  </section>
+
+  <footer>Built from the actual scripts, SLURM logs, and <span class="filepath">CLAUDE.md</span> status as of 2026-10-06. Node labels name the exact script or SLURM job that performs each step.</footer>
+</div>
+
+<script>
+document.querySelectorAll('nav.tabs button').forEach(function(btn){
+  btn.addEventListener('click', function(){
+    document.querySelectorAll('nav.tabs button').forEach(function(b){b.classList.remove('on')});
+    document.querySelectorAll('section.panel').forEach(function(p){p.classList.remove('on')});
+    btn.classList.add('on');
+    document.getElementById(btn.dataset.tab).classList.add('on');
+  });
+});
+</script>
