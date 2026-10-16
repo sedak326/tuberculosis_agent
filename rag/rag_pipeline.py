@@ -104,6 +104,16 @@ def retrieve(question: str, top_k: int = RAG_TOP_K) -> list:
     return vs.similarity_search(question, k=top_k)
 
 
+def retrieve_with_score(question: str, top_k: int = RAG_TOP_K) -> list:
+    """Like retrieve(), but also returns each chunk's Chroma distance score
+    (lower = closer match). Used for adaptive/confidence-gated retrieval:
+    the top-1 score is a cheap signal for whether anything genuinely
+    relevant was found, as opposed to the index just returning the
+    least-bad match from a 489k-chunk corpus regardless of relevance."""
+    vs = load_vectorstore()
+    return vs.similarity_search_with_score(question, k=top_k)
+
+
 def build_context(retrieved: list) -> str:
     if not retrieved:
         return ""

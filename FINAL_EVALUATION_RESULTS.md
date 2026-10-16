@@ -84,6 +84,74 @@ Bold = best result overall.
    which is a different task shape than the open-ended research-assistant
    queries RAG is actually meant for.
 
+## RAG diagnostic — why retrieval hurt accuracy, and does gating fix it
+
+Follow-up investigation into why RAG lowered accuracy (0.806 → 0.701, see
+finding 5 above), using the exact 960 scored outputs from both conditions.
+
+**Per-item flip analysis.** Of 960 questions, RAG flipped 167 from correct to
+wrong and only 66 from wrong to correct (607 stayed correct in both, 120
+stayed wrong in both). Reading the flipped cases directly: the model's
+free-text reasoning is nearly identical with and without RAG — same facts,
+same conclusion in substance — but the extra retrieved context nudges the
+wording enough to tip GPT-4o's answer-matching call to a different letter.
+This matters because **the entire aligned-960 benchmark is built from three
+"critique a synthetic scenario" categories** (`methodology_critique`,
+`premise_correction`, `result_interpretation` — 320 each, confirmed via the
+set's own `cognitive_level` field), not fact-recall questions. For these, the
+four answer choices are often close paraphrases of each other, so a small
+wording nudge is enough to flip the judge's letter-match even when a human
+would call the two explanations equivalent. 114 of the 167 flips (68%) fall
+in these three categories.
+
+**Adaptive/gated RAG (63-question diagnostic, not a full re-run).** Built a
+confidence gate (`evaluate_emcqa_rag.py --adaptive --score-threshold`): only
+inject retrieved context when the top-1 Chroma distance score clears a
+threshold (median score across the full 960, 0.0676), otherwise generate
+with no context at all. Tested on a 63-question sample stratified across
+all three cognitive levels and across retrieval-confidence terciles (ids in
+`/uss/skavlak/version_3/eval_results/adaptive_sample_ids.json`), scored the
+same way (GPT-4o) and compared against the same 63 ids from the full no-RAG
+and always-RAG runs:
+
+| Condition (n=63) | Accuracy | Penalized | Factual | Coherence | Natural | Complete |
+|---|---|---|---|---|---|---|
+| No-RAG | 0.889 | 0.833 | 4.83 | 4.86 | 4.90 | 4.59 |
+| Always-RAG | 0.762 | 0.643 | 4.65 | 4.63 | 4.68 | 4.24 |
+| Adaptive-RAG | 0.794 | 0.690 | 4.76 | 4.83 | 4.84 | 4.48 |
+
+Adaptive gating recovers roughly a third of the accuracy gap. But splitting
+by what the gate actually decided reveals the gate is not finding "good"
+retrieval:
+
+| Subset of the 63 | No-RAG acc | Always-RAG acc | Adaptive acc |
+|---|---|---|---|
+| Gate skipped context (35/63, "low confidence") | 0.971 | 0.943 | 0.943 |
+| Gate used context (28/63, "high confidence") | 0.786 | 0.536 | 0.607 |
+
+The closest-matching retrieved chunks (lowest distance score) are the ones
+that hurt accuracy *most* — not least. In a 489k-chunk broad biomedical
+corpus, a confident match usually means "similar TB vocabulary," not
+"addresses this specific synthetic scenario," so it tends to surface
+superficially-similar-but-substantively-different content, which is more
+misleading than a chunk the model can clearly tell is irrelevant and ignore.
+The net improvement from gating comes almost entirely from **using RAG less
+often** (the gate skips retrieval on 55% of this sample), not from
+successfully separating helpful from harmful retrieval. A real fix would
+need content-relevance reranking, not just a distance cutoff.
+
+**Caveat:** the 63-question diagnostic is directional, not a statistically
+powered replacement for the full 960-question numbers.
+
+**Open question for the team:** RAG measurably hurts this closed-form MCQ
+benchmark, but the interactive chat UI (`rag/chat_ui.py`) produces
+well-grounded, properly cited answers to open-ended research questions —
+arguably RAG's real use case, which this benchmark doesn't test. Decision
+needed: keep RAG as an optional/default feature for the interactive
+assistant despite the MCQ regression, hold off until a better-targeted
+open-ended eval exists, or invest in real relevance reranking before
+shipping either way.
+
 ## Source files
 
 Raw eval outputs and GPT-4o-scored results live in

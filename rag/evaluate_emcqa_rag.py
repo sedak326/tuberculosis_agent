@@ -27,7 +27,7 @@ from pathlib import Path
 import torch
 from transformers import AutoModelForCausalLM, AutoTokenizer, BitsAndBytesConfig
 
-from rag_pipeline import load_vectorstore, retrieve, build_context
+from rag_pipeline import load_vectorstore, retrieve, retrieve_with_score, build_context
 
 SYSTEM_PROMPT = """\
 You are an expert in tuberculosis (TB) research. Answer the multiple-choice question below \
@@ -115,6 +115,17 @@ def main():
                               "context makes each prompt much longer.")
     parser.add_argument("--max-new-tokens", type=int, default=512)
     parser.add_argument("--top-k", type=int, default=8)
+    parser.add_argument("--adaptive", action="store_true",
+                         help="Only inject retrieved context when the top-1 Chroma distance "
+                              "score clears --score-threshold (lower score = closer match). "
+                              "Otherwise behaves exactly like the no-context eval path.")
+    parser.add_argument("--score-threshold", type=float, default=0.0676,
+                         help="Distance cutoff for --adaptive (default: median top-1 score "
+                              "observed across the aligned-960 set in a one-off diagnostic). "
+                              "Context is used only when top1_score <= this value.")
+    parser.add_argument("--ids-file", default=None,
+                         help="Optional JSON file with a list of MCQ ids to restrict this run "
+                              "to (for a small diagnostic subset instead of the full set).")
     parser.add_argument("--resume", action="store_true")
     parser.add_argument("--randomize-answers", action="store_true")
     parser.add_argument("--seed", type=int, default=42)
@@ -134,8 +145,32 @@ def main():
                 done_ids.add(json.loads(line)["id"])
         print(f"Resuming: {len(done_ids)} already evaluated")
 
-    mcqs = [m for m in load_mcqs(args.mcq) if m["id"] not in done_ids]
-    print(f"Evaluating {len(mcqs)} MCQs (RAG-augmented) with {args.model}")
+    all_mcqs = load_mcqs(args.mcq)
+
+    # Replay the shuffle across the FULL file in original order, regardless of
+    # any --ids-file/--resume filtering below - score_explanations.py always
+    # reconstructs "correct_presented" the same way (full file, original
+    # order), so filtering the list before shuffling would desync which
+    # letter was shown to the model from which letter the judge thinks was
+    # shown, corrupting every grading decision for the filtered run.
+    presented = {}
+    for m in all_mcqs:
+        if args.randomize_answers:
+            choices, correct_letter = shuffle_choices(m, rng)
+        else:
+            choices, correct_letter = m["choices"], m["correct"]
+        presented[m["id"]] = (choices, correct_letter)
+
+    mcqs = [m for m in all_mcqs if m["id"] not in done_ids]
+
+    if args.ids_file:
+        with open(args.ids_file, encoding="utf-8") as f:
+            wanted = set(json.load(f))
+        mcqs = [m for m in mcqs if m["id"] in wanted]
+        print(f"Restricted to {len(mcqs)} MCQs from --ids-file")
+
+    mode = "adaptive RAG" if args.adaptive else "RAG-augmented"
+    print(f"Evaluating {len(mcqs)} MCQs ({mode}) with {args.model}")
 
     print("Loading TB corpus vectorstore...")
     load_vectorstore()
@@ -182,16 +217,26 @@ def main():
             batch_choices = []
             batch_correct = []
             batch_contexts = []
+            batch_used_context = []
             for m in batch:
-                if args.randomize_answers:
-                    choices, correct_letter = shuffle_choices(m, rng)
-                else:
-                    choices, correct_letter = m["choices"], m["correct"]
+                choices, correct_letter = presented[m["id"]]
                 batch_choices.append(choices)
                 batch_correct.append(correct_letter)
 
-                retrieved = retrieve(m["question"], top_k=args.top_k)
-                batch_contexts.append(build_context(retrieved))
+                if args.adaptive:
+                    scored = retrieve_with_score(m["question"], top_k=args.top_k)
+                    top1_score = scored[0][1] if scored else float("inf")
+                    if top1_score <= args.score_threshold:
+                        retrieved = [d for d, _ in scored]
+                        batch_contexts.append(build_context(retrieved))
+                        batch_used_context.append(True)
+                    else:
+                        batch_contexts.append("")  # gate closed: no context, same as no-RAG path
+                        batch_used_context.append(False)
+                else:
+                    retrieved = retrieve(m["question"], top_k=args.top_k)
+                    batch_contexts.append(build_context(retrieved))
+                    batch_used_context.append(True)
 
             prompts = [
                 build_prompt(tokenizer, m, c, ctx)
@@ -222,6 +267,7 @@ def main():
                     "correct_original": mcq["correct"],
                     "correct_presented": batch_correct[j],
                     "raw_output": raw_output,
+                    "used_context": batch_used_context[j],
                 }
                 f.write(json.dumps(record, ensure_ascii=False) + "\n")
                 f.flush()
