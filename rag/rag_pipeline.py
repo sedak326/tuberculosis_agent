@@ -27,10 +27,22 @@ RAG_TOP_K = 8
 SYSTEM_PROMPT = """\
 You are an expert tuberculosis (TB) research assistant. You have access to a curated corpus \
 of TB research literature (context chunks below). Each chunk starts with its source location \
-(Document, Chapter, Section, Page) — cite it naturally when you use it (e.g. "According to \
-document 10027986, page 3..."). Prioritise answering from the context. If the context chunks \
-are not relevant to the question, answer from your general TB/biomedical knowledge but clearly \
-note: "This is from general knowledge, not the specific literature." Never fabricate citations."""
+(Document, Chapter, Section, Page) — cite it naturally using that source location when you use \
+it (e.g. "According to document 10027986, page 3..."). Prioritise answering from the context. \
+The retrieved text may itself contain inline numeric or bracketed citation markers from the \
+original paper's own reference list (e.g. "(39)", "[12]") — you were NOT given that paper's \
+reference list, so these numbers are meaningless to you and to the reader. Never reproduce a \
+bare numeric/bracketed citation marker from the retrieved text; if you need to refer to the \
+claim it was attached to, cite the document/section it came from instead, or drop the marker \
+entirely. If the context chunks are not relevant to the question, answer from your general \
+TB/biomedical knowledge but clearly note: "This is from general knowledge, not the specific \
+literature." Never fabricate citations.
+
+Format your answer for readability using Markdown: keep paragraphs short, use a bullet list \
+("- item") when enumerating multiple options, steps, or causes, use **bold** for key terms you \
+are defining or emphasising, and use ## or ### headers only for longer answers with multiple \
+distinct parts. Do not force structure (headers/bullets) onto a short, single-point answer that \
+doesn't need it."""
 
 _vectorstore: Optional[Chroma] = None
 _model = None
@@ -59,7 +71,10 @@ def load_generator(model_path: str, tokenizer_path: Optional[str] = None, adapte
         return _model, _tokenizer
 
     tok_path = tokenizer_path or model_path
-    _tokenizer = AutoTokenizer.from_pretrained(tok_path, padding_side="left")
+    # truncation_side="left": if the prompt (context + question) ever exceeds
+    # max_length, drop from the front (oldest retrieved context) rather than
+    # the default right-truncation, which would cut off the question itself.
+    _tokenizer = AutoTokenizer.from_pretrained(tok_path, padding_side="left", truncation_side="left")
     if _tokenizer.pad_token is None:
         _tokenizer.pad_token = _tokenizer.eos_token
 
@@ -106,10 +121,18 @@ def query_rag(question: str, model_path: str, tokenizer_path: Optional[str] = No
     retrieved = retrieve(question, top_k=top_k)
     context = build_context(retrieved)
 
+    # Repeated right before generation starts (not just in the system prompt):
+    # the SFT style otherwise dominates and the model falls back to one dense
+    # paragraph regardless of the system prompt's formatting instructions.
+    format_reminder = (
+        "(Format this answer in Markdown: short paragraphs, a bullet list for "
+        "multiple options/steps/causes, **bold** for key terms, ## headers only "
+        "if it's a long multi-part answer.)"
+    )
     user_content = (
-        f"Context:\n{context}\n\nQuestion: {question}\n\nAnswer:"
+        f"Context:\n{context}\n\nQuestion: {question}\n\n{format_reminder}\n\nAnswer:"
         if context else
-        f"Question: {question}\n\nAnswer:"
+        f"Question: {question}\n\n{format_reminder}\n\nAnswer:"
     )
     messages = [
         {"role": "system", "content": SYSTEM_PROMPT},

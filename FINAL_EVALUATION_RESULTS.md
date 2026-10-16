@@ -29,6 +29,7 @@ dimensions against a gold explanation.
 | **SFT-Instruct (v5, 100k data)** | **0.8063** | **0.7104** | 4.804 | 4.855 | 4.881 | 4.568 |
 | Merged-noSFT (v5, full corpus + faithful BioMistral schedule) | 0.7760 | 0.6667 | 4.726 | 4.772 | 4.802 | 4.571 |
 | Merged+SFT100k (v5) | 0.7479 | 0.6240 | 4.782 | 4.840 | 4.868 | 4.533 |
+| SFT-Instruct (v5, 100k data) + RAG (full v5 corpus, top-8) | 0.7010 | 0.5542 | 4.680 | 4.730 | 4.770 | 4.310 |
 
 Bold = best result overall.
 
@@ -67,6 +68,21 @@ Bold = best result overall.
    single dimension** — consistent with the catastrophic-forgetting
    diagnosis that motivated the corpus-expansion and merging work in the
    first place.
+5. **Adding RAG on top of the best standalone model (SFT-Instruct v5
+   100k) hurt accuracy on this MCQ benchmark** (0.806 → 0.701, penalized
+   0.710 → 0.554), rather than helping. The RAG condition retrieves the
+   top-8 chunks from the full 489k-chunk v5 corpus and prepends them to
+   each MCQ prompt. A plausible explanation: on closed-form, 4-choice
+   questions the fine-tuned model's own parametric knowledge is already
+   strong, and injecting ~8 extra chunks of retrieved text lengthens and
+   dilutes the prompt, occasionally pulling the model's attention toward
+   tangential passages instead of the actual answer choices. This does not
+   mean the RAG system itself is broken — it is built, working, and
+   produces well-grounded, properly cited, well-formatted answers in the
+   interactive chat UI (`rag/chat_ui.py`) — it means retrieval-augmentation
+   does not pay off on *this specific* short, closed-form MCQ eval format,
+   which is a different task shape than the open-ended research-assistant
+   queries RAG is actually meant for.
 
 ## Source files
 

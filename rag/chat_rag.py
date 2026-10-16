@@ -8,9 +8,9 @@ Single question:
 Interactive loop (no --question):
     python chat_rag.py
 
-Defaults to the best standalone fine-tuned checkpoint so far (Run 4
-SFT-from-Instruct, 0.801 accuracy on the aligned-960 eval) - swap via
---model/--tokenizer/--adapter once the RAG-paired comparison has its own
+Defaults to the best standalone fine-tuned checkpoint so far (v5
+SFT-from-Instruct, 100k data, 0.806 accuracy on the aligned-960 eval) - swap
+via --model/--tokenizer/--adapter once the RAG-paired comparison has its own
 eval and a different backbone wins.
 """
 
@@ -19,7 +19,7 @@ import argparse
 from rag_pipeline import query_rag
 
 DEFAULT_MODEL = "meta-llama/Llama-3.1-8B-Instruct"
-DEFAULT_ADAPTER = "/uss/skavlak/tb_sft_instruct_run4_qlora_checkpoints/final"
+DEFAULT_ADAPTER = "/uss/skavlak/tb_sft_instruct_v5_100k_qlora_checkpoints/final"
 
 
 def main():
