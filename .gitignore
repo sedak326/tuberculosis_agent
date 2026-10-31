@@ -24,3 +24,10 @@ __pycache__/
 # Misc
 *.docx
 scratch/
+
+# Stray downloaded papers / scratch artifacts at repo root (reference papers
+# that belong in refs/ stay tracked there; this only ignores root-level ones)
+/*.pdf
+/hackathon_dashboard.py
+/pipeline_map.html
+/sft_data_sample.txt
