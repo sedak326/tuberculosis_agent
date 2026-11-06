@@ -18,6 +18,11 @@ Outputs (in `stats/results/`): `significance_aligned960.csv`, `significance_reca
   for three definitions of the family: `table` (the 18 tests of one table), `global` (all tests of
   the eval set), `primary` (accuracy + penalized accuracy only)
 
+`level_breakdown.py` reports the accuracy difference per question type (cognitive level / category) with
+exact McNemar p-values (uncorrected, descriptive only; n = 200 or 320 per cell) and the reference model's
+accuracy in each level, i.e. the headroom. Outputs: `results/level_breakdown_<dataset>.csv`. This is the
+source of the per-level table used in the CPT Discussion paragraph.
+
 Notes:
 
 - The choice of family is a judgment call. State which one the thesis uses. Pre-specifying
